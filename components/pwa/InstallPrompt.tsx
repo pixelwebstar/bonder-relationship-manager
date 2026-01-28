@@ -7,8 +7,9 @@ import { motion, AnimatePresence } from "framer-motion";
 export function InstallPrompt() {
     const [isIOS, setIsIOS] = useState(false);
     const [isAndroid, setIsAndroid] = useState(false);
-    const [isStandalone, setIsStandalone] = useState(true); // Default to true to avoid flash
+    const [isStandalone, setIsStandalone] = useState(true);
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+    const [installStatus, setInstallStatus] = useState<'idle' | 'installing' | 'installed'>('idle');
 
     useEffect(() => {
         // Check if running in standalone mode (PWA installed and running)
@@ -17,48 +18,71 @@ export function InstallPrompt() {
 
         // Detect OS
         const userAgent = window.navigator.userAgent.toLowerCase();
-        const ios = /iphone|ipad|ipod/.test(userAgent);
-        const android = /android/.test(userAgent);
-        const isMobile = /iphone|ipad|ipod|android/.test(userAgent);
+        const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
+        const isAndroidDevice = /android/.test(userAgent);
+        const isMobile = isIOSDevice || isAndroidDevice;
 
         if (isMobile) {
-            const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
-            const isAndroidDevice = /android/.test(userAgent);
             setIsIOS(isIOSDevice);
             setIsAndroid(isAndroidDevice);
         }
 
         // Determine if we should show the prompt (i.e., is NOT standalone)
-        // We only want to show the prompt (isStandalone = false) if it IS mobile AND NOT standalone.
-        // For desktop, we treat it as standalone (hidden) to avoid blocking.
         let shouldHidePrompt = true;
-
         if (isMobile && !isStandaloneMode) {
             shouldHidePrompt = false;
         }
 
+        // If app is already installed but opened in browser (heuristic for Android sometimes), 
+        // we might want to show "Open App" immediately? 
+        // For now, respect the standard "not standalone = prompt" logic.
         setIsStandalone(shouldHidePrompt);
 
-
         // Capture Android install prompt
-        window.addEventListener("beforeinstallprompt", (e) => {
+        const handleBeforeInstallPrompt = (e: any) => {
             e.preventDefault();
             setDeferredPrompt(e);
-        });
+        };
+
+        // Capture successful install
+        const handleAppInstalled = () => {
+            setInstallStatus('installed');
+            setDeferredPrompt(null);
+            // Optionally close the prompt after a delay or keep "Open App" visible
+        };
+
+        window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+        window.addEventListener("appinstalled", handleAppInstalled);
+
+        return () => {
+            window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+            window.removeEventListener("appinstalled", handleAppInstalled);
+        };
 
     }, []);
 
     const handleInstallClick = async () => {
         if (deferredPrompt) {
+            setInstallStatus('installing');
             deferredPrompt.prompt();
             const { outcome } = await deferredPrompt.userChoice;
             if (outcome === 'accepted') {
-                setDeferredPrompt(null);
+                // Wait for appinstalled event
+            } else {
+                setInstallStatus('idle'); // Revert if cancelled
             }
         }
     };
 
-    // If it's standalone or not mobile, render nothing
+    const handleOpenApp = () => {
+        // Attempts to launch the app or just closes the modal essentially
+        // On Android, clicking the specific "Open" link in standard prompts works, 
+        // but custom button behaviors are limited. 
+        // We will try opening the manifest start_url.
+        window.open('/?source=pwa', '_blank');
+    };
+
+    // If it's standalone, render nothing
     if (isStandalone) return null;
 
     return (
@@ -69,13 +93,16 @@ export function InstallPrompt() {
                 className="max-w-md w-full bg-card border border-border rounded-[2rem] p-8 shadow-2xl"
             >
                 <div className="w-20 h-20 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-lg shadow-violet-500/30">
-                    {/* App Logo Placeholder */}
                     <span className="text-4xl font-bold text-white">B</span>
                 </div>
 
-                <h2 className="text-2xl font-bold mb-3">Install Bond</h2>
+                <h2 className="text-2xl font-bold mb-3">
+                    {installStatus === 'installed' ? 'App Installed!' : 'Install Bond'}
+                </h2>
                 <p className="text-muted-foreground mb-8">
-                    To use Bond, you need to add it to your home screen. It takes less than 5 seconds!
+                    {installStatus === 'installed'
+                        ? 'Bonder has been successfully installed to your home screen.'
+                        : 'To use Bond, you need to add it to your home screen.'}
                 </p>
 
                 {isIOS && (
@@ -93,16 +120,34 @@ export function InstallPrompt() {
                 )}
 
                 {isAndroid && (
-                    <div className="space-y-6">
-                        {deferredPrompt ? (
+                    <div className="space-y-4">
+                        {installStatus === 'installed' ? (
+                            <button
+                                onClick={handleOpenApp}
+                                className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-green-500/25 transition-all active:scale-95"
+                            >
+                                Open App
+                            </button>
+                        ) : deferredPrompt ? (
                             <button
                                 onClick={handleInstallClick}
-                                className="w-full py-4 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-violet-500/25 transition-all active:scale-95"
+                                disabled={installStatus === 'installing'}
+                                className="w-full py-4 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-violet-500/25 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
                             >
-                                <Download className="w-5 h-5" />
-                                Install App
+                                {installStatus === 'installing' ? (
+                                    <>
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        Installing...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Download className="w-5 h-5" />
+                                        Install App
+                                    </>
+                                )}
                             </button>
                         ) : (
+                            // Fallback instructions if automated prompt fails or is ignored
                             <div className="space-y-6 text-left bg-secondary/50 p-6 rounded-2xl">
                                 <div className="flex items-center gap-4">
                                     <span className="w-8 h-8 flex items-center justify-center bg-background rounded-full font-bold text-primary shadow-sm">1</span>

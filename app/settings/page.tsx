@@ -4,18 +4,19 @@ import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { MobileFrame } from "@/components/layout/MobileFrame";
 import { BottomNav } from "@/components/layout/BottomNav";
-import { Settings, Moon, Bell, Trash2, Download, Shield, Check, X, Zap } from "lucide-react";
+import { Moon, Bell, Trash2, Download, Shield, X, Zap } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { SubscriptionModal } from "@/components/monetization/SubscriptionModal";
+import { ProfileModal } from "@/components/modals/ProfileModal";
 import { ResetModal } from "@/components/modals/ResetModal";
 
 export default function SettingsPage() {
     const router = useRouter();
     const store = useStore();
-    const { theme, setTheme } = useTheme();
+    const { theme, setTheme, resolvedTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
 
     // Local State for settings
@@ -23,9 +24,11 @@ export default function SettingsPage() {
     const [showPrivacy, setShowPrivacy] = useState(false);
     const [showReset, setShowReset] = useState(false);
     const [showSubscription, setShowSubscription] = useState(false);
-    const [isEditingProfile, setIsEditingProfile] = useState(false);
-    const [userName, setUserName] = useState("Valentine"); // Would come from store ideally
-    const [isPro] = useState(false); // Mock subscription state
+    const [showProfileModal, setShowProfileModal] = useState(false);
+    // const [isEditingProfile, setIsEditingProfile] = useState(false); // Removed
+    const [userName, setUserName] = useState("Valentine");
+    const [userAvatar, setUserAvatar] = useState<string | null>(null);
+    const [isPro] = useState(false);
 
     useEffect(() => {
         setTimeout(() => setMounted(true), 0);
@@ -37,7 +40,14 @@ export default function SettingsPage() {
     }, []);
 
     const toggleTheme = () => {
-        setTheme(theme === 'dark' ? 'light' : 'dark');
+        // If current is dark (either set explicitly or by system), switch to light
+        // If current is light, switch to dark
+        // Setting specific value overrides system
+        if (resolvedTheme === 'dark') {
+            setTheme('light');
+        } else {
+            setTheme('dark');
+        }
     };
 
     const toggleNotifications = () => {
@@ -66,17 +76,13 @@ export default function SettingsPage() {
         toast.success("Data exported successfully!");
     };
 
-    const saveProfile = () => {
-        setIsEditingProfile(false);
-        toast.success("Profile updated!");
-        // Here you would update the store if the store had a user name field
-    };
+    // const saveProfile = () => { ... } // Removed
 
     if (!mounted) return <div className="p-6">Loading...</div>;
 
     const getToggleColor = () => {
         if (!notificationsEnabled) return 'bg-secondary';
-        return theme === 'dark' ? 'bg-indigo-500' : 'bg-green-500';
+        return resolvedTheme === 'dark' ? 'bg-indigo-500' : 'bg-green-500';
     };
 
     return (
@@ -88,50 +94,40 @@ export default function SettingsPage() {
                 </header>
 
                 <div className="space-y-8">
-                    {/* Account Section */}
+                    {/* Account Section - Fully Clickable */}
                     <section>
                         <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4 px-1">Account</h2>
-                        <div className="glass-card rounded-[1.5rem] p-1">
-                            {isEditingProfile ? (
-                                <div className="p-5">
-                                    <label className="text-xs text-muted-foreground font-bold mb-2 block uppercase">Display Name</label>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            value={userName}
-                                            onChange={(e) => setUserName(e.target.value)}
-                                            className="flex-1 bg-secondary/50 border border-border rounded-xl px-4 py-2 text-foreground focus:outline-none focus:border-primary transition-colors"
-                                        />
-                                        <button onClick={saveProfile} className="p-2 bg-primary text-white rounded-xl">
-                                            <Check className="w-5 h-5" />
-                                        </button>
+                        <div
+                            onClick={() => setShowProfileModal(true)}
+                            className="glass-card rounded-[1.5rem] p-4 flex items-center justify-between cursor-pointer hover:bg-white/5 transition-all active:scale-[0.98] group relative overflow-hidden"
+                        >
+                            <div className="flex items-center gap-4 relative z-10">
+                                {userAvatar ? (
+                                    <div className="w-16 h-16 rounded-full overflow-hidden shadow-lg shadow-violet-500/20 border-2 border-white/20">
+                                        <img src={userAvatar} alt="Profile" className="w-full h-full object-cover" />
+                                    </div>
+                                ) : (
+                                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/20 text-2xl font-bold text-white border-2 border-white/20">
+                                        {userName.charAt(0).toUpperCase()}
+                                    </div>
+                                )}
+                                <div>
+                                    <p className="font-bold text-foreground text-xl leading-tight group-hover:text-primary transition-colors">{userName}</p>
+                                    <div className="flex items-center gap-2 mt-1.5">
+                                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-md border ${isPro ? 'bg-violet-500/10 border-violet-500/20 text-violet-500' : 'bg-secondary/50 border-border text-muted-foreground'}`}>
+                                            {isPro ? "Bonder Pro" : "Free Plan"}
+                                        </span>
                                     </div>
                                 </div>
-                            ) : (
-                                <div className="p-4 flex items-center justify-between group rounded-[1.2rem] transition-colors relative">
-                                    <div className="flex items-center gap-4">
-                                        <div onClick={() => setIsEditingProfile(true)} className="w-14 h-14 cursor-pointer rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/20 text-xl font-bold text-white relative">
-                                            {userName.charAt(0)}
-                                            <div className="absolute inset-0 border-2 border-white/20 rounded-full" />
-                                        </div>
-                                        <div>
-                                            <p onClick={() => setIsEditingProfile(true)} className="font-bold text-foreground text-lg cursor-pointer hover:text-primary transition-colors">{userName}</p>
+                            </div>
 
-                                            {/* Subscription Trigger */}
-                                            <button
-                                                onClick={() => setShowSubscription(true)}
-                                                className={`text-xs font-bold px-2 py-0.5 rounded-md mt-1 flex items-center gap-1 transition-transform active:scale-95 ${isPro ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white' : 'bg-secondary text-muted-foreground hover:bg-secondary/80'}`}
-                                            >
-                                                {isPro ? <Zap className="w-3 h-3 fill-white" /> : null}
-                                                {isPro ? "Bonder Pro Active" : "Free Plan • Upgrade"}
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div onClick={() => setIsEditingProfile(true)} className="p-2 cursor-pointer text-muted-foreground hover:text-primary transition-colors">
-                                        <Settings className="w-5 h-5" />
-                                    </div>
-                                </div>
-                            )}
+                            <div className="p-2 text-muted-foreground group-hover:text-primary transition-colors">
+                                {/* Chevron or simple indicator usually better than gear here if it opens detail view, but user asked to remove settings button. Maybe just an arrow? */}
+                                {/* Keeping it clean as requested, maybe just the clickable area implies playfulness */}
+                            </div>
+
+                            {/* Decorative background glow for 'Pro' feel */}
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
                         </div>
                     </section>
 
@@ -149,8 +145,8 @@ export default function SettingsPage() {
                                     <div className="p-2.5 bg-indigo-500/10 rounded-xl text-indigo-500"><Moon className="w-5 h-5" /></div>
                                     <span className="font-medium text-foreground">Dark Mode</span>
                                 </div>
-                                <div className={`w-12 h-7 rounded-full p-1 transition-colors duration-300 ${theme === 'dark' ? 'bg-indigo-500' : 'bg-secondary'}`}>
-                                    <div className={`w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-300 ${theme === 'dark' ? 'translate-x-5' : 'translate-x-0'}`} />
+                                <div className={`w-12 h-7 rounded-full p-1 transition-colors duration-300 ${resolvedTheme === 'dark' ? 'bg-indigo-500' : 'bg-secondary'}`}>
+                                    <div className={`w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-300 ${resolvedTheme === 'dark' ? 'translate-x-5' : 'translate-x-0'}`} />
                                 </div>
                             </div>
 
@@ -252,6 +248,29 @@ export default function SettingsPage() {
 
                 {/* Subscription Modal */}
                 <SubscriptionModal isOpen={showSubscription} onClose={() => setShowSubscription(false)} />
+
+                {/* Profile Edit Modal */}
+                <ProfileModal
+                    isOpen={showProfileModal}
+                    onClose={() => setShowProfileModal(false)}
+                    currentName={userName}
+                    currentAvatar={userAvatar}
+                    onSaveName={(name) => {
+                        setUserName(name);
+                        toast.success("Profile updated!");
+                    }}
+                    onAvatarUpload={(file) => {
+                        // Create a local URL for the file to show immediately
+                        const imageUrl = URL.createObjectURL(file);
+                        setUserAvatar(imageUrl);
+                        toast.success("Profile picture updated!");
+                    }}
+                    onUpgrade={() => {
+                        setShowProfileModal(false);
+                        setTimeout(() => setShowSubscription(true), 200); // Small delay for smooth transition
+                    }}
+                    isPro={isPro}
+                />
             </div>
             <BottomNav />
         </MobileFrame>

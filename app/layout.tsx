@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/providers/ThemeProvider";
 
 
 
+import { Analytics } from "@vercel/analytics/react";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 
 const geistSans = Geist({
@@ -43,6 +44,7 @@ export default function RootLayout({
         >
           <InstallPrompt />
           {children}
+          <Analytics />
           <Toaster position="top-center" />
         </ThemeProvider>
       </body>

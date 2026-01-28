@@ -22,8 +22,10 @@ export function InstallPrompt() {
         const isMobile = /iphone|ipad|ipod|android/.test(userAgent);
 
         if (isMobile) {
-            setIsIOS(ios);
-            setIsAndroid(android);
+            const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
+            const isAndroidDevice = /android/.test(userAgent);
+            setIsIOS(isIOSDevice);
+            setIsAndroid(isAndroidDevice);
         }
 
         // Determine if we should show the prompt (i.e., is NOT standalone)

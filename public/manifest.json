@@ -1,0 +1,16 @@
+{
+    "name": "Bonder Relationship Manager",
+    "short_name": "Bonder",
+    "description": "Maintain meaningful connections with your personal CRM.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0B0A1A",
+    "theme_color": "#8B5CF6",
+    "icons": [
+        {
+            "src": "/favicon.ico",
+            "sizes": "any",
+            "type": "image/x-icon"
+        }
+    ]
+}

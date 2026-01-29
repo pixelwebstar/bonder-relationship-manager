@@ -13,9 +13,9 @@ export function PaymentModal({ isOpen, onClose, onComplete }: PaymentModalProps)
     const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
 
     const amounts = [
-        { value: 0.05, label: 'Micro', icon: Star, color: 'from-blue-400 to-indigo-500', desc: "Small token of appreciation" },
-        { value: 0.30, label: 'Standard', icon: Coffee, color: 'from-violet-400 to-fuchsia-500', desc: "Buy us a coffee" },
-        { value: 1.00, label: 'Pro', icon: Zap, color: 'from-amber-400 to-orange-500', desc: "Become a power supporter" },
+        { value: 0.25, label: 'System Spark', icon: Zap, color: 'from-amber-400 to-orange-500', desc: "+250 XP (Instant Boost)" },
+        { value: 0.99, label: 'Clean Energy', icon: Star, color: 'from-emerald-400 to-teal-500', desc: "+1,500 XP + No Ads (24h)" },
+        { value: 4.99, label: 'Star Core', icon: Shield, color: 'from-violet-500 to-fuchsia-600', desc: "+10,000 XP + No Ads (30d)" },
     ];
 
     const handlePay = () => {
@@ -58,8 +58,8 @@ export function PaymentModal({ isOpen, onClose, onComplete }: PaymentModalProps)
                         <div className="p-8 pb-0 relative">
                             <div className="flex justify-between items-start mb-6">
                                 <div>
-                                    <h3 className="text-3xl font-bold text-foreground">Support & Earn</h3>
-                                    <p className="text-muted-foreground mt-1">Remove ads & boost your account.</p>
+                                    <h3 className="text-3xl font-black text-foreground tracking-tight">Fuel System</h3>
+                                    <p className="text-muted-foreground mt-1 font-medium">Recharge your social battery & remove ads.</p>
                                 </div>
                                 <button
                                     onClick={onClose}
@@ -85,8 +85,8 @@ export function PaymentModal({ isOpen, onClose, onComplete }: PaymentModalProps)
                                                     key={opt.value}
                                                     onClick={() => setSelectedAmount(opt.value)}
                                                     className={`w-full group relative overflow-hidden p-4 rounded-2xl border transition-all duration-300 flex items-center gap-4 text-left ${isSelected
-                                                        ? 'border-primary bg-primary/10 shadow-lg shadow-primary/5'
-                                                        : 'border-border/50 hover:border-primary/30 hover:bg-secondary/40'
+                                                        ? 'border-emerald-500 bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.2)]'
+                                                        : 'border-black/5 dark:border-white/10 hover:border-emerald-500/30 hover:bg-black/5 dark:hover:bg-white/5'
                                                         }`}
                                                 >
                                                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br ${opt.color} text-white shadow-md transform group-hover:scale-110 transition-transform duration-300`}>

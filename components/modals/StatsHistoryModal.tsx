@@ -1,19 +1,25 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, TrendingUp, History, Activity, Info, Calendar } from "lucide-react";
+import { X, TrendingUp, History, Activity, Info, Calendar, Clock } from "lucide-react";
 import { Contact } from "@/lib/store";
 import { format, differenceInDays, formatDistanceToNow } from "date-fns";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface StatsHistoryModalProps {
     isOpen: boolean;
     onClose: () => void;
     contact: Contact;
+    initialTab?: 'health' | 'timeline';
 }
 
-export function StatsHistoryModal({ isOpen, onClose, contact }: StatsHistoryModalProps) {
-    const [activeTab, setActiveTab] = useState<'health' | 'timeline'>('health');
+export function StatsHistoryModal({ isOpen, onClose, contact, initialTab = 'health' }: StatsHistoryModalProps) {
+    const [activeTab, setActiveTab] = useState<'health' | 'timeline'>(initialTab);
+
+    // Update tab if initialTab changes while open (though usually it's set on open)
+    useEffect(() => {
+        setActiveTab(initialTab);
+    }, [initialTab]);
 
     return (
         <AnimatePresence>
@@ -141,16 +147,41 @@ export function StatsHistoryModal({ isOpen, onClose, contact }: StatsHistoryModa
 
                         {activeTab === 'timeline' && (
                             <div className="space-y-6">
+                                {/* Interaction Guide */}
+                                <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 p-5 rounded-2xl border border-emerald-100 dark:border-white/5">
+                                    <div className="flex items-start gap-4 mb-4">
+                                        <div className="p-2 bg-white dark:bg-slate-800 rounded-xl shadow-sm">
+                                            <Calendar className="w-6 h-6 text-emerald-500" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-foreground mb-1">Consistency Matters</h3>
+                                            <p className="text-xs text-muted-foreground leading-relaxed">
+                                                Regular check-ins keep the relationship "High Mass". The Timeline tracks your actual consistency versus your target of every {contact.targetFrequencyDays} days.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="bg-white/60 dark:bg-slate-800/60 p-3 rounded-xl">
+                                            <div className="text-xs font-bold text-slate-500 mb-1">XP Reward</div>
+                                            <div className="text-sm font-bold text-emerald-600">+10 to +15 XP</div>
+                                        </div>
+                                        <div className="bg-white/60 dark:bg-slate-800/60 p-3 rounded-xl">
+                                            <div className="text-xs font-bold text-slate-500 mb-1">Health Impact</div>
+                                            <div className="text-sm font-bold text-emerald-600">Instantly 100%</div>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 {/* Last Seen Stats */}
-                                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl flex items-center justify-between">
+                                <div className="bg-slate-50 dark:bg-slate-800 shadow-inner p-4 rounded-2xl flex items-center justify-between border border-slate-100 dark:border-slate-800">
                                     <div>
-                                        <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Last Seen</div>
+                                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Current Interaction Gap</div>
                                         <div className="text-lg font-bold text-foreground">
                                             {formatDistanceToNow(new Date(contact.lastContacted), { addSuffix: true })}
                                         </div>
                                     </div>
-                                    <div className="w-10 h-10 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
-                                        <Calendar className="w-5 h-5 text-violet-500" />
+                                    <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 shadow-sm flex items-center justify-center">
+                                        <Clock className="w-5 h-5 text-violet-500" />
                                     </div>
                                 </div>
 

@@ -82,8 +82,8 @@ export function InteractionModal({ isOpen, onClose, onLog, contactName }: Intera
 
                         {step === 1 && (
                             <div className="text-center">
-                                <h2 className="text-2xl font-bold text-slate-800 mb-2">Did you connect?</h2>
-                                <p className="text-slate-500 mb-6">How did you reach out to {contactName}?</p>
+                                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Did you connect?</h2>
+                                <p className="text-slate-600 dark:text-slate-300 mb-6">How did you reach out to {contactName}?</p>
 
                                 {/* Social Anxiety Tools */}
                                 <div className="flex justify-center gap-4 mb-8">
@@ -127,8 +127,8 @@ export function InteractionModal({ isOpen, onClose, onLog, contactName }: Intera
 
                         {step === 2 && (
                             <div className="text-center">
-                                <h2 className="text-2xl font-bold text-slate-800 mb-2">How was it?</h2>
-                                <p className="text-slate-500 mb-6">Rate the vibe of the conversation.</p>
+                                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">How was it?</h2>
+                                <p className="text-slate-600 dark:text-slate-300 mb-6">Rate the vibe of the conversation.</p>
 
                                 <div className="space-y-3">
                                     <VibeOption icon={Sparkles} label="Awesome!" sub="Deep, meaningful connection" onClick={() => handleVibeSelect('awesome')} color="border-emerald-200 bg-emerald-50 text-emerald-600" />
@@ -141,8 +141,8 @@ export function InteractionModal({ isOpen, onClose, onLog, contactName }: Intera
 
                         {step === 3 && (
                             <div className="text-center">
-                                <h2 className="text-xl font-bold text-slate-800 mb-2">Any thoughts?</h2>
-                                <p className="text-slate-500 text-sm mb-4">Add a quick private note to remember details.</p>
+                                <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Any thoughts?</h2>
+                                <p className="text-slate-600 dark:text-slate-300 text-sm mb-4">Add a quick private note to remember details.</p>
 
                                 <textarea
                                     className="w-full h-24 bg-slate-50 border-none rounded-2xl p-4 text-slate-700 outline-none focus:ring-2 focus:ring-violet-500/20 mb-4 resize-none"

@@ -114,14 +114,24 @@ export default function StreaksPage() {
                 </div>
 
                 {/* Daily Quests */}
-                <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-                    <Zap className="w-5 h-5 text-amber-500" /> Daily Quests
-                </h3>
-                <div className="space-y-3 mb-8">
-                    <QuestItem completed={true} title="Daily Check-in" xp={5} />
-                    <QuestItem completed={stats.currentStreak > 0} title="Keep streak alive" xp={20} />
-                    <QuestItem completed={stats.totalInteractions > 5} title="Log 5 interactions" xp={50} />
-                </div>
+                {stats.dailyCountedXP < 100 ? (
+                    <>
+                        <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                            <Zap className="w-5 h-5 text-amber-500" /> Daily Quests
+                        </h3>
+                        <div className="space-y-3 mb-8">
+                            <QuestItem completed={true} title="Daily Check-in" xp={5} />
+                            <QuestItem completed={stats.currentStreak > 0} title="Keep streak alive" xp={10} />
+                            <QuestItem completed={stats.totalInteractions >= 3} title="Log 3 interactions" xp={50} />
+                        </div>
+                    </>
+                ) : (
+                    <div className="glass-card p-6 rounded-3xl mb-8 border-emerald-500/20 bg-emerald-50/10 text-center">
+                        <Trophy className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                        <h3 className="font-bold text-emerald-600 dark:text-emerald-400">Daily Leveling Cap Reached!</h3>
+                        <p className="text-xs text-muted-foreground mt-1">You've reached your 100 XP counted limit for today. You can still earn more "Feel Good" XP, but your level will increase again tomorrow!</p>
+                    </div>
+                )}
 
                 {/* Points History */}
                 <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">

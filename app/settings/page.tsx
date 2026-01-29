@@ -18,19 +18,26 @@ import { useRef } from "react";
 
 export default function SettingsPage() {
     const router = useRouter();
-    const store = useStore();
-    const { userProfile, updateDisplayName, initializeProfile } = useStore();
+    const userProfile = useStore((state) => state.userProfile);
+    const updateDisplayName = useStore((state) => state.updateDisplayName);
+    const initializeProfile = useStore((state) => state.initializeProfile);
+    const toggleNotifications = useStore((state) => state.toggleNotifications);
+    const storeNotificationsEnabled = useStore((state) => state.notificationsEnabled);
+    const updateProfile = useStore((state) => state.updateProfile);
+    const connectToCloud = useStore((state) => state.connectToCloud);
+    const contacts = useStore((state) => state.contacts);
+    const addContact = useStore((state) => state.addContact);
+
     const { theme, setTheme, resolvedTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
 
-    // Local State for settings
-    const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+    // Local State for UI
     const [showPrivacy, setShowPrivacy] = useState(false);
     const [showReset, setShowReset] = useState(false);
     const [showSubscription, setShowSubscription] = useState(false);
     const [showProfileModal, setShowProfileModal] = useState(false);
-    const [userAvatar, setUserAvatar] = useState<string | null>(null);
-    const [isPro] = useState(false);
+
+    const { userId, displayName, avatar: userAvatar, isPro, isConnected } = userProfile || { userId: '', displayName: '', avatar: null, isPro: false, isConnected: false };
 
     // Import state
     const [showImportModal, setShowImportModal] = useState(false);
@@ -41,11 +48,6 @@ export default function SettingsPage() {
         setTimeout(() => setMounted(true), 0);
         // Initialize profile if not exists
         initializeProfile();
-        // Load settings from local storage if available
-        const savedNotifs = localStorage.getItem('bonder_notifications');
-        if (savedNotifs !== null) {
-            setTimeout(() => setNotificationsEnabled(JSON.parse(savedNotifs)), 0);
-        }
     }, [initializeProfile]);
 
     const toggleTheme = () => {
@@ -59,11 +61,9 @@ export default function SettingsPage() {
         }
     };
 
-    const toggleNotifications = () => {
-        const newState = !notificationsEnabled;
-        setNotificationsEnabled(newState);
-        localStorage.setItem('bonder_notifications', JSON.stringify(newState));
-        toast.info(newState ? "Notifications Enabled" : "Notifications Disabled");
+    const handleToggleNotifications = () => {
+        toggleNotifications();
+        toast.info(!storeNotificationsEnabled ? "Notifications Enabled" : "Notifications Disabled");
     };
 
     const handleResetConfirm = () => {
@@ -75,7 +75,7 @@ export default function SettingsPage() {
     };
 
     const handleExportData = () => {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(store, null, 2));
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ ...useStore.getState() }, null, 2));
         const downloadAnchorNode = document.createElement('a');
         downloadAnchorNode.setAttribute("href", dataStr);
         downloadAnchorNode.setAttribute("download", `bonder_backup_${new Date().toISOString().split('T')[0]}.json`);
@@ -112,8 +112,8 @@ export default function SettingsPage() {
         let count = 0;
         selected.forEach(p => {
             // Check for duplicates
-            if (!store.contacts.find(c => c.name === p.name)) {
-                store.addContact({
+            if (!contacts.find(c => c.name === p.name)) {
+                addContact({
                     name: p.name,
                     phoneNumber: p.phone,
                     email: p.email,
@@ -126,18 +126,12 @@ export default function SettingsPage() {
         toast.success(`Imported ${count} contacts successfully!`);
     };
 
-    // const saveProfile = () => { ... } // Removed
-
-    if (!mounted) return <div className="p-6">Loading...</div>;
-
     const getToggleColor = () => {
-        if (!notificationsEnabled) return 'bg-secondary';
-        return resolvedTheme === 'dark' ? 'bg-indigo-500' : 'bg-green-500';
+        if (storeNotificationsEnabled) return "bg-indigo-500";
+        return "bg-secondary";
     };
 
-    // Get display name from profile
-    const displayName = userProfile?.displayName || "User";
-    const userId = userProfile?.userId || 1;
+    if (!mounted) return null;
 
     return (
         <MobileFrame>
@@ -153,32 +147,27 @@ export default function SettingsPage() {
                         <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4 px-1">Account</h2>
                         <div
                             onClick={() => setShowProfileModal(true)}
-                            className="glass-card rounded-[1.5rem] p-4 flex items-center justify-between cursor-pointer hover:bg-white/5 transition-all active:scale-[0.98] group relative overflow-hidden"
+                            className="glass-card rounded-[1.5rem] p-4 flex items-center justify-between cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-all active:scale-[0.98] group relative overflow-hidden"
                         >
                             <div className="flex items-center gap-4 relative z-10">
-                                {userAvatar ? (
-                                    <div className="w-16 h-16 rounded-full overflow-hidden shadow-lg shadow-violet-500/20 border-2 border-white/20">
-                                        <img src={userAvatar} alt="Profile" className="w-full h-full object-cover" />
+                                {userProfile?.avatar ? (
+                                    <div className="w-14 h-14 rounded-full overflow-hidden shadow-lg shadow-violet-500/20 border-2 border-white/20">
+                                        <img src={userProfile.avatar} alt="Profile" className="w-full h-full object-cover" />
                                     </div>
                                 ) : (
-                                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/20 text-2xl font-bold text-white border-2 border-white/20">
-                                        {displayName.charAt(0).toUpperCase()}
+                                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/20 text-xl font-bold text-white border-2 border-white/10">
+                                        {userProfile?.displayName.charAt(0).toUpperCase()}
                                     </div>
                                 )}
                                 <div>
-                                    <p className="font-bold text-foreground text-xl leading-tight group-hover:text-primary transition-colors">{displayName}</p>
-                                    <div className="flex items-center gap-2 mt-1.5">
-                                        <span className="text-[10px] text-muted-foreground">ID: #{userId.toString().padStart(4, '0')}</span>
-                                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-md border ${isPro ? 'bg-violet-500/10 border-violet-500/20 text-violet-500' : 'bg-secondary/50 border-border text-muted-foreground'}`}>
-                                            {isPro ? "Bonder Pro" : "Free Plan"}
+                                    <p className="font-bold text-foreground text-lg leading-tight transition-colors">{userProfile?.displayName}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-[10px] text-muted-foreground/60 transition-colors uppercase tracking-wider font-bold">ID: {userProfile?.userId}</span>
+                                        <span className={`text-[9px] uppercase font-black px-1.5 py-0.5 rounded-md border ${userProfile?.isPro ? 'bg-violet-500 text-white border-transparent' : 'bg-secondary/50 border-border text-muted-foreground'}`}>
+                                            {userProfile?.isPro ? "Pro" : "Free"}
                                         </span>
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="p-2 text-muted-foreground group-hover:text-primary transition-colors">
-                                {/* Chevron or simple indicator usually better than gear here if it opens detail view, but user asked to remove settings button. Maybe just an arrow? */}
-                                {/* Keeping it clean as requested, maybe just the clickable area implies playfulness */}
                             </div>
 
                             {/* Decorative background glow for 'Pro' feel */}
@@ -189,12 +178,15 @@ export default function SettingsPage() {
                     {/* Security Section */}
                     <section>
                         <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4 px-1">Security</h2>
-                        <div className="glass-card rounded-[1.5rem] overflow-hidden divide-y divide-border/30">
+                        <div className="glass-card rounded-[1.5rem] overflow-hidden">
                             <button
                                 onClick={() => {
-                                    toast.info("Google Sign-in coming soon!");
+                                    // Use the new connectToCloud action
+                                    const { connectToCloud } = useStore.getState();
+                                    connectToCloud();
+                                    toast.success("Connected to Bonder Cloud! Permanent ID assigned.");
                                 }}
-                                className="w-full p-5 flex items-center justify-between hover:bg-white/5 transition-colors text-left group"
+                                className="w-full p-5 flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/5 transition-all active:scale-[0.98] text-left group"
                             >
                                 <div className="flex items-center gap-4">
                                     <div className="w-10 h-10 bg-white dark:bg-slate-700 rounded-xl flex items-center justify-center shadow-sm">
@@ -206,27 +198,15 @@ export default function SettingsPage() {
                                         </svg>
                                     </div>
                                     <div>
-                                        <span className="font-medium text-foreground group-hover:text-primary transition-colors">Connect Google</span>
-                                        <p className="text-xs text-muted-foreground">Sync across devices</p>
+                                        <span className="font-medium text-foreground">Connect Google</span>
+                                        <p className="text-xs text-muted-foreground">{isConnected ? "Successfully synced" : "Sync across devices"}</p>
                                     </div>
                                 </div>
-                                <span className="text-xs px-2 py-1 rounded-lg bg-amber-500/10 text-amber-600 font-medium">Soon</span>
-                            </button>
-
-                            <button
-                                onClick={() => {
-                                    toast.info("Email Sign-in coming soon!");
-                                }}
-                                className="w-full p-5 flex items-center justify-between hover:bg-white/5 transition-colors text-left group"
-                            >
-                                <div className="flex items-center gap-4">
-                                    <div className="p-2.5 bg-blue-500/10 rounded-xl text-blue-500"><Mail className="w-5 h-5" /></div>
-                                    <div>
-                                        <span className="font-medium text-foreground group-hover:text-blue-500 transition-colors">Connect Email</span>
-                                        <p className="text-xs text-muted-foreground">Backup with email</p>
-                                    </div>
-                                </div>
-                                <span className="text-xs px-2 py-1 rounded-lg bg-amber-500/10 text-amber-600 font-medium">Soon</span>
+                                {isConnected ? (
+                                    <div className="p-1 px-2 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-bold">LOCKED</div>
+                                ) : (
+                                    <span className="text-[10px] px-2 py-1 rounded-lg bg-primary/10 text-primary font-black uppercase">Start</span>
+                                )}
                             </button>
 
                             <div className="p-4 flex items-center gap-3 bg-emerald-500/5">
@@ -239,12 +219,12 @@ export default function SettingsPage() {
                     {/* Preferences */}
                     <section>
                         <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4 px-1">Experience</h2>
-                        <div className="glass-card rounded-[1.5rem] overflow-hidden divide-y divide-border/30">
+                        <div className="glass-card rounded-[1.5rem] overflow-hidden divide-y divide-black/5 dark:divide-white/5 border border-black/5 dark:border-white/10">
 
                             {/* Dark Mode */}
                             <div
                                 onClick={toggleTheme}
-                                className="p-5 flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors"
+                                className="p-5 flex items-center justify-between cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-all active:scale-[0.98]"
                             >
                                 <div className="flex items-center gap-4">
                                     <div className="p-2.5 bg-indigo-500/10 rounded-xl text-indigo-500"><Moon className="w-5 h-5" /></div>
@@ -257,8 +237,8 @@ export default function SettingsPage() {
 
                             {/* Notifications */}
                             <div
-                                onClick={toggleNotifications}
-                                className="p-5 flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors"
+                                onClick={handleToggleNotifications}
+                                className="p-5 flex items-center justify-between cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-all active:scale-[0.98]"
                             >
                                 <div className="flex items-center gap-4">
                                     <div className="p-2.5 bg-pink-500/10 rounded-xl text-pink-500"><Bell className="w-5 h-5" /></div>
@@ -266,7 +246,7 @@ export default function SettingsPage() {
                                 </div>
                                 {/* Use different active color for distinct look */}
                                 <div className={`w-12 h-7 rounded-full p-1 transition-colors duration-300 ${getToggleColor()}`}>
-                                    <div className={`w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-300 ${notificationsEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                                    <div className={`w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-300 ${storeNotificationsEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
                                 </div>
                             </div>
                         </div>
@@ -275,18 +255,18 @@ export default function SettingsPage() {
                     {/* Data */}
                     <section>
                         <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4 px-1">Data & Privacy</h2>
-                        <div className="glass-card rounded-[1.5rem] overflow-hidden divide-y divide-border/30">
-                            <button onClick={handleExportData} className="w-full p-5 flex items-center justify-between hover:bg-white/5 transition-colors text-left group">
+                        <div className="glass-card rounded-[1.5rem] overflow-hidden divide-y divide-black/5 dark:divide-white/5 border border-black/5 dark:border-white/10">
+                            <button onClick={handleExportData} className="w-full p-5 flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/5 transition-all active:scale-[0.98] text-left">
                                 <div className="flex items-center gap-4">
                                     <div className="p-2.5 bg-blue-500/10 rounded-xl text-blue-500"><Download className="w-5 h-5" /></div>
-                                    <span className="font-medium text-foreground group-hover:text-blue-500 transition-colors">Export Data</span>
+                                    <span className="font-medium text-foreground">Export Data</span>
                                 </div>
                             </button>
 
-                            <button onClick={() => fileInputRef.current?.click()} className="w-full p-5 flex items-center justify-between hover:bg-white/5 transition-colors text-left group">
+                            <button onClick={() => fileInputRef.current?.click()} className="w-full p-5 flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/5 transition-all active:scale-[0.98] text-left">
                                 <div className="flex items-center gap-4">
                                     <div className="p-2.5 bg-fuchsia-500/10 rounded-xl text-fuchsia-500"><Download className="w-5 h-5 rotate-180" /></div>
-                                    <span className="font-medium text-foreground group-hover:text-fuchsia-500 transition-colors">Import Contacts</span>
+                                    <span className="font-medium text-foreground">Import Contacts</span>
                                 </div>
                                 <input
                                     type="file"
@@ -297,10 +277,10 @@ export default function SettingsPage() {
                                 />
                             </button>
 
-                            <button onClick={() => setShowPrivacy(true)} className="w-full p-5 flex items-center justify-between hover:bg-white/5 transition-colors text-left group">
+                            <button onClick={() => setShowPrivacy(true)} className="w-full p-5 flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/5 transition-all active:scale-[0.98] text-left">
                                 <div className="flex items-center gap-4">
                                     <div className="p-2.5 bg-violet-500/10 rounded-xl text-violet-500"><Shield className="w-5 h-5" /></div>
-                                    <span className="font-medium text-foreground group-hover:text-violet-500 transition-colors">Privacy Policy</span>
+                                    <span className="font-medium text-foreground">Privacy Policy</span>
                                 </div>
                             </button>
 
@@ -373,22 +353,24 @@ export default function SettingsPage() {
                     isOpen={showProfileModal}
                     onClose={() => setShowProfileModal(false)}
                     currentName={displayName}
-                    currentAvatar={userAvatar}
+                    currentAvatar={userAvatar as string | null}
                     onSaveName={(name) => {
                         updateDisplayName(name);
                         toast.success("Profile updated!");
                     }}
                     onAvatarUpload={(file) => {
-                        // Create a local URL for the file to show immediately
-                        const imageUrl = URL.createObjectURL(file);
-                        setUserAvatar(imageUrl);
-                        toast.success("Profile picture updated!");
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                            updateProfile({ avatar: reader.result as string });
+                        };
+                        reader.readAsDataURL(file);
                     }}
                     onUpgrade={() => {
                         setShowProfileModal(false);
                         setTimeout(() => setShowSubscription(true), 200);
                     }}
                     isPro={isPro}
+                    isConnected={isConnected}
                 />
 
                 {/* Import Review Modal */}

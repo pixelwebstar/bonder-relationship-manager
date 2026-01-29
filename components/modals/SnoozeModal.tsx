@@ -14,11 +14,12 @@ interface SnoozeModalProps {
 
 export function SnoozeModal({ isOpen, onClose, onSnooze, onClearSnooze, isSnoozed, contactName }: SnoozeModalProps) {
     const snoozeOptions = [
-        { days: 7, label: "1 Week" },
-        { days: 14, label: "2 Weeks" },
-        { days: 30, label: "1 Month" },
-        { days: 90, label: "3 Months" },
-        { days: 36500, label: "Forever" }, // ~100 years
+        { days: 7, label: "7 days" },
+        { days: 14, label: "14 days" },
+        { days: 30, label: "30 days" },
+        { days: 90, label: "90 days" },
+        { days: 180, label: "6 month" },
+        { days: 36500, label: "never" },
     ];
 
     const handleSnooze = (days: number) => {
@@ -85,7 +86,7 @@ export function SnoozeModal({ isOpen, onClose, onSnooze, onClearSnooze, isSnooze
                                         <Clock className="w-4 h-4 text-muted-foreground group-hover:text-foreground" />
                                         <span className="font-medium text-foreground">{option.label}</span>
                                     </div>
-                                    <span className="text-xs text-muted-foreground">{option.days} days</span>
+
                                 </button>
                             ))}
                         </div>

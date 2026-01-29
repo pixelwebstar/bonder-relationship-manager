@@ -23,6 +23,19 @@ export const metadata: Metadata = {
   title: "Bonder | Relationship Manager",
   description: "Maintain meaningful connections with your personal CRM.",
   manifest: "/manifest.json",
+  openGraph: {
+    title: "Bonder | Relationship Manager",
+    description: "Maintain meaningful connections with your personal CRM.",
+    url: "https://bonder-app.vercel.app",
+    siteName: "Bonder",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Bonder | Relationship Manager",
+    description: "Maintain meaningful connections with your personal CRM.",
+  },
 };
 
 export default function RootLayout({

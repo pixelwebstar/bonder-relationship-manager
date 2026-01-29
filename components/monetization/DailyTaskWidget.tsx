@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useStore } from '@/lib/store';
-import { PlayCircle, DollarSign, CheckCircle2, Gift } from 'lucide-react';
+import { PlayCircle, CircleDollarSign, CheckCircle2, Gift } from 'lucide-react';
 import { VideoAdModal } from './VideoAdModal';
 import { PaymentModal } from './PaymentModal';
 import { toast } from 'sonner';
@@ -60,7 +60,7 @@ export function DailyTaskWidget() {
                 className="glass-card rounded-3xl p-6 soft-shadow mb-6 relative overflow-hidden"
             >
                 {/* Background decoration */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 opacity-50" />
+                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 opacity-50 pointer-events-none" />
 
                 <div className="flex items-start justify-between mb-4 relative z-10">
                     <div className="flex items-center gap-3">
@@ -68,11 +68,11 @@ export function DailyTaskWidget() {
                             <Gift className="w-6 h-6" />
                         </div>
                         <div>
-                            <h3 className="font-bold text-foreground">Daily Reward</h3>
-                            <p className="text-xs text-muted-foreground">Complete one task to boost your stats</p>
+                            <h3 className="font-bold text-lg text-slate-800 dark:text-white">Daily Reward</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">Complete one task to boost your stats</p>
                         </div>
                     </div>
-                    <div className="px-3 py-1 bg-primary/10 text-primary text-xs font-bold rounded-full">
+                    <div className="px-3 py-1 bg-primary/10 dark:bg-violet-500/20 text-primary dark:text-violet-300 text-xs font-bold rounded-full border border-primary/20 dark:border-violet-500/30">
                         +50 XP
                     </div>
                 </div>
@@ -80,20 +80,20 @@ export function DailyTaskWidget() {
                 <div className="grid grid-cols-2 gap-3 relative z-10">
                     <button
                         onClick={() => setIsAdOpen(true)}
-                        className="flex flex-col items-center justify-center p-4 rounded-2xl bg-secondary/50 border-2 border-transparent hover:border-primary/30 hover:bg-secondary transition-all group"
+                        className="flex flex-col items-center justify-center p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 hover:border-violet-500/50 hover:bg-black/10 dark:hover:bg-white/10 transition-all group"
                     >
-                        <PlayCircle className="w-8 h-8 text-primary mb-2 group-hover:scale-110 transition-transform" />
-                        <span className="text-sm font-bold text-foreground">Watch Ad</span>
-                        <span className="text-[10px] text-muted-foreground">1 minute</span>
+                        <PlayCircle className="w-8 h-8 text-violet-600 dark:text-violet-400 mb-2 group-hover:scale-110 transition-transform" />
+                        <span className="text-sm font-bold text-slate-700 dark:text-white">Watch Ad</span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400">1 minute</span>
                     </button>
 
                     <button
                         onClick={() => setIsPayOpen(true)}
-                        className="flex flex-col items-center justify-center p-4 rounded-2xl bg-secondary/50 border-2 border-transparent hover:border-emerald-500/30 hover:bg-secondary transition-all group"
+                        className="flex flex-col items-center justify-center p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 hover:border-emerald-500/50 hover:bg-black/10 dark:hover:bg-white/10 transition-all group"
                     >
-                        <DollarSign className="w-8 h-8 text-emerald-500 mb-2 group-hover:scale-110 transition-transform" />
-                        <span className="text-sm font-bold text-foreground">Micro-pay</span>
-                        <span className="text-[10px] text-muted-foreground">From $0.05</span>
+                        <CircleDollarSign className="w-8 h-8 text-emerald-600 dark:text-emerald-400 mb-2 group-hover:scale-110 transition-transform" />
+                        <span className="text-sm font-bold text-slate-700 dark:text-white">Fuel System</span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400">From $0.25</span>
                     </button>
                 </div>
             </motion.div>

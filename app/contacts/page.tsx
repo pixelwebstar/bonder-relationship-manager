@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { ConfirmModal } from "@/components/modals/ConfirmModal";
 import Link from "next/link";
+import { AvatarGradient } from "@/components/ui/AvatarGradient";
+import { HealthBar } from "@/components/ui/HealthBar";
 
 type SortOption = 'health' | 'name' | 'lastContacted' | 'favorites';
 
@@ -272,7 +274,7 @@ export default function ContactsPage() {
                 )}
 
                 {/* List */}
-                <div className="space-y-3">
+                <div className="space-y-6">
                     <AnimatePresence>
                         {filteredContacts.map((contact, i) => {
                             const isSelected = selectedIds.includes(contact.id);
@@ -291,14 +293,14 @@ export default function ContactsPage() {
                                         window.addEventListener('touchend', clear, { once: true });
                                         window.addEventListener('touchmove', clear, { once: true });
                                     }}
-                                    className={`glass-card p-4 rounded-2xl flex items-center justify-between cursor-pointer transition-all ${isSelected
+                                    className={`glass-card p-5 rounded-[2rem] flex items-center justify-between cursor-pointer transition-all border border-transparent ${isSelected
                                         ? 'bg-primary/10 border-primary/50 dark:bg-primary/20'
                                         : isSnoozed
                                             ? 'opacity-50 grayscale hover:opacity-70'
-                                            : 'hover:bg-white/90 dark:hover:bg-slate-800/80'
+                                            : 'hover:bg-white/90 dark:hover:bg-slate-800/80 hover:border-violet-500/20'
                                         }`}
                                 >
-                                    <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-5 w-full">
                                         {/* Selection Checkbox */}
                                         {selectionMode && (
                                             <div className="flex-shrink-0">
@@ -311,21 +313,24 @@ export default function ContactsPage() {
                                         )}
 
                                         {/* Avatar */}
-                                        <div className={`w-12 h-12 rounded-full bg-gradient-to-br from-violet-100 to-fuchsia-100 flex items-center justify-center text-violet-600 font-bold text-lg ${isSnoozed ? 'grayscale' : ''}`}>
-                                            {contact.name.charAt(0)}
+                                        <div className="flex-shrink-0">
+                                            <AvatarGradient name={contact.name} src={contact.avatar} size="md" />
                                         </div>
 
-                                        <div>
+                                        <div className="flex flex-col gap-1.5 flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
-                                                <h3 className="font-semibold text-foreground">{contact.name}</h3>
-                                                {isSnoozed && <BellOff className="w-3 h-3 text-muted-foreground" />}
+                                                <h3 className="font-bold text-lg text-slate-800 dark:text-white dark:drop-shadow-[0_0_8px_rgba(255,255,255,0.3)] truncate">{contact.name}</h3>
+                                                {isSnoozed && <BellOff className="w-4 h-4 text-muted-foreground" />}
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <HealthBar score={contact.healthScore} />
-                                                <span className="text-xs text-slate-400">
-                                                    {contact.healthScore < 50 ? "Needs attention" : "Healthy"}
-                                                </span>
+
+                                            {/* Stacked Bar & Status */}
+                                            <div className="w-full max-w-[180px]">
+                                                <HealthBar score={contact.healthScore} className="w-full h-2 shadow-[0_0_8px_rgba(139,92,246,0.2)]" />
                                             </div>
+
+                                            <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 tracking-wide">
+                                                {contact.healthScore < 50 ? "Needs attention" : "Healthy Connection"}
+                                            </span>
                                         </div>
                                     </div>
 
@@ -338,8 +343,11 @@ export default function ContactsPage() {
                                                 <Star className={`w-5 h-5 ${contact.isFavorite ? 'text-amber-400 fill-amber-400' : 'text-slate-300 hover:text-amber-400'}`} />
                                             </button>
                                             <button
-                                                onClick={(e) => { e.stopPropagation(); }}
-                                                className="p-2 text-slate-300 hover:text-violet-500 transition-colors"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    window.location.href = `tel:${contact.phoneNumber}`;
+                                                }}
+                                                className="p-2 text-slate-300 hover:text-green-500 transition-colors"
                                             >
                                                 <Phone className="w-5 h-5" />
                                             </button>
@@ -380,17 +388,4 @@ export default function ContactsPage() {
     );
 }
 
-function HealthBar({ score }: { score: number }) {
-    let color = "bg-emerald-500";
-    if (score < 70) color = "bg-amber-500";
-    if (score < 40) color = "bg-rose-500";
 
-    return (
-        <div className="w-16 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-            <div
-                className={`h-full ${color} transition-all duration-500`}
-                style={{ width: `${score}%` }}
-            />
-        </div>
-    );
-}

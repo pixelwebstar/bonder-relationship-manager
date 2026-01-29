@@ -38,6 +38,7 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
     const [showStatsModal, setShowStatsModal] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [aiSummary, setAiSummary] = useState<string | null>(null);
+    const [modalTab, setModalTab] = useState<'health' | 'timeline'>('health');
 
     if (!contact) {
         return (
@@ -211,7 +212,7 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
                         {/* Stats */}
                         <div className="grid grid-cols-2 gap-3 mb-8">
                             <div
-                                onClick={() => setShowStatsModal(true)}
+                                onClick={() => { setModalTab('timeline'); setShowStatsModal(true); }}
                                 className="bg-gradient-to-br from-violet-50 to-indigo-50 dark:from-slate-800 dark:to-slate-800/80 p-3.5 rounded-2xl shadow-sm border border-violet-100/50 dark:border-slate-700 cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all"
                             >
                                 <div className="flex items-center gap-1.5 mb-2">
@@ -226,7 +227,7 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
                                 </div>
                             </div>
                             <div
-                                onClick={() => setShowStatsModal(true)}
+                                onClick={() => { setModalTab('health'); setShowStatsModal(true); }}
                                 className="bg-gradient-to-br from-fuchsia-50 to-pink-50 dark:from-slate-800 dark:to-slate-800/80 p-3.5 rounded-2xl shadow-sm border border-fuchsia-100/50 dark:border-slate-700 cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all"
                             >
                                 <div className="flex items-center gap-1.5 mb-2">
@@ -327,19 +328,19 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
                         {/* Notes & Logs */}
                         <div className="mb-8">
                             <h2 className="text-lg font-bold text-foreground mb-4">Notes & Logs</h2>
-                            <form onSubmit={handleAddNote} className="flex gap-2 mb-6">
-                                <div className="relative flex-1">
-                                    <MessageSquare className="absolute left-4 top-4 w-5 h-5 text-violet-400" />
+                            <form onSubmit={handleAddNote} className="flex gap-2 mb-6 items-center">
+                                <div className="relative flex-1 group">
+                                    <MessageSquare className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-violet-400 group-focus-within:text-violet-500 transition-colors" />
                                     <input
                                         type="text"
                                         value={noteText}
                                         onChange={(e) => setNoteText(e.target.value)}
-                                        placeholder="Jotted down something..."
-                                        className="w-full bg-violet-50/50 dark:bg-violet-900/10 pl-10 pr-4 py-4 rounded-[1.5rem] border-none outline-none focus:ring-2 focus:ring-violet-500/20 text-foreground placeholder:text-slate-400 placeholder:italic"
+                                        placeholder="Remembered they love hazelnut lattes..."
+                                        className="w-full bg-violet-50/50 dark:bg-violet-900/10 pl-11 pr-4 py-3 rounded-[1.25rem] border border-transparent outline-none focus:ring-2 focus:ring-violet-500/20 focus:bg-white dark:focus:bg-slate-800 transition-all text-sm text-foreground placeholder:text-slate-400 placeholder:italic"
                                     />
                                 </div>
-                                <button type="submit" disabled={!noteText.trim()} className="p-3 bg-violet-600 text-white rounded-2xl shadow-lg shadow-violet-500/30 disabled:opacity-50 disabled:shadow-none">
-                                    <Send className="w-5 h-5" />
+                                <button type="submit" disabled={!noteText.trim()} className="p-3 bg-violet-600 hover:bg-violet-700 text-white rounded-xl shadow-lg shadow-violet-500/30 disabled:opacity-50 disabled:shadow-none flex-shrink-0 transition-all active:scale-[0.95]">
+                                    <Send className="w-4 h-4" />
                                 </button>
                             </form>
                             <div className="space-y-3">
@@ -377,7 +378,7 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
                 <BottomNav />
 
                 <InteractionModal isOpen={isLogging} onClose={() => setIsLogging(false)} onLog={handleLogComplete} contactName={contact.name} />
-                <StatsHistoryModal isOpen={showStatsModal} onClose={() => setShowStatsModal(false)} contact={contact} />
+                <StatsHistoryModal isOpen={showStatsModal} onClose={() => setShowStatsModal(false)} contact={contact} initialTab={modalTab} />
 
                 {/* History Modal */}
                 <AnimatePresence>

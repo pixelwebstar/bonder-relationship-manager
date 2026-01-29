@@ -47,10 +47,13 @@ export interface CBTContext {
 }
 
 export interface UserProfile {
-    userId: number; // Sequential user ID (e.g., 1, 2, 3...)
-    displayName: string; // User's display name, starts as "User #XX"
-    timezone: string; // IANA timezone string (e.g., "America/Denver")
-    createdAt: string; // ISO Date when user first visited
+    userId: string;
+    displayName: string;
+    timezone: string;
+    createdAt: string;
+    avatar: string | null;
+    isPro: boolean;
+    isConnected: boolean;
 }
 
 export interface Contact {
@@ -104,6 +107,8 @@ export interface UserStats {
 
     // Anti-Abuse
     dailyPointsEarned: number;
+    dailyInteractionXP: number; // Tracks XP from interactions (cap at 90)
+    dailyCountedXP: number; // Tracks XP that actually increased the level (cap at 100)
 
     // History
     pointHistory: PointHistoryItem[];
@@ -128,12 +133,15 @@ export interface LeaderboardEntry {
     isUser?: boolean;
 }
 
-const MAX_DAILY_POINTS = 150; // Cap daily earnings
+const MAX_COUNTED_DAILY_POINTS = 100; // Only 100 XP counts towards leveling per day
+const MAX_INTERACTION_DAILY_XP = 90; // All interactions combined cap at 90 XP
+const DAILY_BOOST_XP = 50; // Daily reward (ad/pay) is 50 XP
 
 interface AppState {
     contacts: Contact[];
     availableTags: string[]; // Global list of available tags
     stats: UserStats;
+    notificationsEnabled: boolean;
     userProfile: UserProfile | null;
 
     // Actions
@@ -169,48 +177,61 @@ interface AppState {
     // User Profile Actions
     initializeProfile: () => void;
     updateDisplayName: (name: string) => void;
+    updateProfile: (updates: Partial<UserProfile>) => void;
+    connectToCloud: () => void; // New action to set permanent ID
 
     // Note Actions
     deleteNote: (contactId: string, noteId: string) => void;
 
     // Favorite Actions
     toggleFavorite: (id: string) => void;
+    toggleNotifications: () => void;
 }
 
 // --- Utils ---
 
 const calculateHealthScore = (lastContacted: string, targetDays: number): number => {
+    // If target is 0 ("Never"), health never decays
+    if (targetDays === 0) return 100;
+
     const now = new Date();
     const last = new Date(lastContacted);
     const diffTime = Math.abs(now.getTime() - last.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    // Use float days for smoother minute-by-minute decay if needed, but Math.ceil implies "day started = damage done"
+    // Users prefer "exact", so let's use exact fractional days for the linear formula
+    const diffDays = diffTime / (1000 * 60 * 60 * 24);
 
-    if (diffDays <= 1) return 100;
+    if (diffDays <= 0.1) return 100; // Grace period of a few hours
 
-    const decayRate = 100 / (targetDays * 2);
-    const score = 100 - (diffDays * decayRate);
+    // Linear Decay: 0% at exactly targetDays
+    // Rate = 100 / targetDays per day
+    const decayPerDay = 100 / targetDays;
+    const score = 100 - (diffDays * decayPerDay);
 
     return Math.max(0, Math.min(100, Math.round(score)));
 };
 
-// Updated Logic with Orbit Awareness
+// Updated Logic with Orbit Awareness & Linear Thresholds
 const calculateDriftStatus = (lastContacted: string, targetDays: number, orbit: OrbitLayer): DriftState => {
+    if (targetDays === 0) return 'stable';
+
     const now = new Date();
     const last = new Date(lastContacted);
     const diffTime = Math.abs(now.getTime() - last.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = diffTime / (1000 * 60 * 60 * 24);
 
-    // Orbit multipliers: Inner circle decays faster (needs high maintenance)
-    let toleranceMultiplier = 1;
-    if (orbit === 'inner') toleranceMultiplier = 1.0;
-    if (orbit === 'middle') toleranceMultiplier = 2.0;
-    if (orbit === 'outer') toleranceMultiplier = 4.0;
+    // Linear Thresholds based on % health
+    // > 75% = Stable
+    // 40% - 75% = Drifting
+    // 15% - 40% = Fading
+    // < 15% = Ghost
 
-    const adjustedTarget = targetDays * toleranceMultiplier;
+    const decayPerDay = 100 / targetDays;
+    const health = 100 - (diffDays * decayPerDay);
 
-    if (diffDays <= adjustedTarget) return 'stable';
-    if (diffDays <= adjustedTarget * 2) return 'drifting';
-    if (diffDays <= adjustedTarget * 4) return 'fading';
+    if (health > 75) return 'stable';
+    if (health > 40) return 'drifting';
+    if (health > 15) return 'fading';
     return 'ghost';
 };
 
@@ -221,6 +242,7 @@ export const useStore = create<AppState>()(
         (set, get) => ({
             contacts: [],
             availableTags: ['Family', 'Friends', 'Colleagues', 'Others'], // Defaults
+            notificationsEnabled: true,
             stats: {
                 points: 0,
                 currentStreak: 0,
@@ -234,6 +256,8 @@ export const useStore = create<AppState>()(
                     completedChallenges: []
                 },
                 dailyPointsEarned: 0,
+                dailyInteractionXP: 0,
+                dailyCountedXP: 0,
                 pointHistory: []
             },
 
@@ -303,44 +327,60 @@ export const useStore = create<AppState>()(
             logInteraction: (contactId) => {
                 const now = new Date().toISOString();
                 const { checkStreak } = get();
+                const potentialReward = 5; // Reduced from 10
 
-                const reward = 10;
-                set((state) => ({
-                    contacts: state.contacts.map((c) => {
-                        if (c.id === contactId) {
-                            const oldScore = c.healthScore;
-                            const newScore = 100;
-                            const historyItem: HealthHistoryItem = {
+                set((state) => {
+                    // 1. Calculate how much interaction XP remains
+                    const interactionXPRemaining = Math.max(0, MAX_INTERACTION_DAILY_XP - state.stats.dailyInteractionXP);
+                    const interactionPointsToAdd = Math.min(potentialReward, interactionXPRemaining);
+
+                    // 2. Calculate how much leveling XP remains
+                    const levelingXPRemaining = Math.max(0, MAX_COUNTED_DAILY_POINTS - state.stats.dailyCountedXP);
+                    const pointsToCount = Math.min(interactionPointsToAdd, levelingXPRemaining);
+
+                    const effectiveXPAdded = pointsToCount;
+
+                    return {
+                        contacts: state.contacts.map((c) => {
+                            if (c.id === contactId) {
+                                const oldScore = c.healthScore;
+                                const newScore = 100;
+                                const historyItem: HealthHistoryItem = {
+                                    id: uuidv4(),
+                                    date: now,
+                                    score: newScore,
+                                    change: newScore - oldScore,
+                                    reason: 'interaction'
+                                };
+
+                                return {
+                                    ...c,
+                                    lastContacted: now,
+                                    healthScore: newScore,
+                                    driftStatus: 'stable',
+                                    healthHistory: [historyItem, ...(c.healthHistory || [])]
+                                };
+                            }
+                            return c;
+                        }),
+                        stats: {
+                            ...state.stats,
+                            points: state.stats.points + effectiveXPAdded,
+                            currentStreak: 0, // Will be updated by checkStreak
+                            totalInteractions: state.stats.totalInteractions + 1,
+                            dailyPointsEarned: state.stats.dailyPointsEarned + interactionPointsToAdd,
+                            dailyInteractionXP: state.stats.dailyInteractionXP + interactionPointsToAdd,
+                            dailyCountedXP: state.stats.dailyCountedXP + effectiveXPAdded,
+                            pointHistory: effectiveXPAdded > 0 ? [{
                                 id: uuidv4(),
                                 date: now,
-                                score: newScore,
-                                change: newScore - oldScore,
-                                reason: 'interaction'
-                            };
-
-                            return {
-                                ...c,
-                                lastContacted: now,
-                                healthScore: newScore,
-                                driftStatus: 'stable',
-                                healthHistory: [historyItem, ...(c.healthHistory || [])]
-                            };
+                                points: effectiveXPAdded,
+                                reason: 'Logged generic interaction',
+                                source: 'interaction'
+                            }, ...state.stats.pointHistory] : state.stats.pointHistory
                         }
-                        return c;
-                    }),
-                    stats: {
-                        ...state.stats,
-                        points: state.stats.points + reward,
-                        totalInteractions: state.stats.totalInteractions + 1,
-                        pointHistory: [{
-                            id: uuidv4(),
-                            date: now,
-                            points: reward,
-                            reason: 'Logged generic interaction',
-                            source: 'interaction'
-                        }, ...state.stats.pointHistory]
-                    }
-                }));
+                    };
+                });
 
                 checkStreak();
             },
@@ -348,44 +388,58 @@ export const useStore = create<AppState>()(
             logInteractionDetailed: (contactId, type, vibe, notes) => {
                 const now = new Date().toISOString();
                 const { checkStreak } = get();
+                const potentialReward = 10; // Reduced from 15
 
-                const reward = 15;
-                set((state) => ({
-                    contacts: state.contacts.map((c) => {
-                        if (c.id === contactId) {
-                            // Always create a note for the timeline
-                            const noteContent = notes ? `[${type.toUpperCase()}] ${notes}` : `Logged ${type === 'orbit_move' ? 'orbit change' : type}`;
-                            const newNotes = [{ id: uuidv4(), content: noteContent, createdAt: now }, ...c.notes];
-                            return {
-                                ...c,
-                                lastContacted: now,
-                                healthScore: 100,
-                                driftStatus: 'stable',
-                                notes: newNotes,
-                                healthHistory: [{
-                                    id: uuidv4(),
-                                    date: now,
-                                    score: 100,
-                                    change: 100 - c.healthScore,
-                                    reason: 'interaction'
-                                }, ...(c.healthHistory || [])]
-                            };
+                set((state) => {
+                    const interactionXPRemaining = Math.max(0, MAX_INTERACTION_DAILY_XP - state.stats.dailyInteractionXP);
+                    const interactionPointsToAdd = Math.min(potentialReward, interactionXPRemaining);
+
+                    const levelingXPRemaining = Math.max(0, MAX_COUNTED_DAILY_POINTS - state.stats.dailyCountedXP);
+                    const pointsToCount = Math.min(interactionPointsToAdd, levelingXPRemaining);
+
+                    const effectiveXPAdded = pointsToCount;
+
+                    return {
+                        contacts: state.contacts.map((c) => {
+                            if (c.id === contactId) {
+                                // Always create a note for the timeline
+                                const noteContent = notes ? `[${type.toUpperCase()}] ${notes}` : `Logged ${type === 'orbit_move' ? 'orbit change' : type}`;
+                                const newNotes = [{ id: uuidv4(), content: noteContent, createdAt: now }, ...c.notes];
+                                return {
+                                    ...c,
+                                    lastContacted: now,
+                                    healthScore: 100,
+                                    driftStatus: 'stable',
+                                    notes: newNotes,
+                                    healthHistory: [{
+                                        id: uuidv4(),
+                                        date: now,
+                                        score: 100,
+                                        change: 100 - c.healthScore,
+                                        reason: 'interaction'
+                                    }, ...(c.healthHistory || [])]
+                                };
+                            }
+                            return c;
+                        }),
+                        stats: {
+                            ...state.stats,
+                            points: state.stats.points + effectiveXPAdded,
+                            currentStreak: 0, // Will be updated by checkStreak
+                            totalInteractions: state.stats.totalInteractions + 1,
+                            dailyPointsEarned: state.stats.dailyPointsEarned + interactionPointsToAdd,
+                            dailyInteractionXP: state.stats.dailyInteractionXP + interactionPointsToAdd,
+                            dailyCountedXP: state.stats.dailyCountedXP + effectiveXPAdded,
+                            pointHistory: interactionPointsToAdd > 0 ? [{
+                                id: uuidv4(),
+                                date: now,
+                                points: interactionPointsToAdd,
+                                reason: `Logged ${type}`,
+                                source: 'interaction'
+                            }, ...state.stats.pointHistory] : state.stats.pointHistory
                         }
-                        return c;
-                    }),
-                    stats: {
-                        ...state.stats,
-                        points: state.stats.points + reward,
-                        totalInteractions: state.stats.totalInteractions + 1,
-                        pointHistory: [{
-                            id: uuidv4(),
-                            date: now,
-                            points: reward,
-                            reason: `Logged ${type}`,
-                            source: 'interaction'
-                        }, ...state.stats.pointHistory]
-                    }
-                }));
+                    };
+                });
 
                 checkStreak();
             },
@@ -472,28 +526,26 @@ export const useStore = create<AppState>()(
             }),
 
             completeDailyTask: (method) => set((state) => {
-                // Check cap
-                if (state.stats.dailyPointsEarned >= MAX_DAILY_POINTS) {
-                    return state; // No more points today
-                }
+                if (state.stats.dailyTaskCompleted) return state;
 
-                const reward = method === 'pay' ? 100 : 50;
-                // Ensure we don't go over cap too crazily, but standard tasks are fine to hit it.
-                // Actually, if they are at 140 and get 50, let them have 190. 
-                // Strict hard cap would be: Math.min(state.stats.points + reward, state.stats.points + (MAX - earned))
+                // Daily Reward follows the same counting rule
+                const potentialXP = DAILY_BOOST_XP;
+                const levelingXPRemaining = Math.max(0, MAX_COUNTED_DAILY_POINTS - state.stats.dailyCountedXP);
+                const pointsToCount = Math.min(potentialXP, levelingXPRemaining);
 
                 return {
                     stats: {
                         ...state.stats,
-                        points: state.stats.points + reward,
-                        dailyPointsEarned: state.stats.dailyPointsEarned + reward,
-                        dailyTaskCompleted: true,
+                        points: state.stats.points + pointsToCount,
+                        dailyPointsEarned: state.stats.dailyPointsEarned + potentialXP,
+                        dailyCountedXP: state.stats.dailyCountedXP + pointsToCount,
+                        dailyTaskCompleted: true, // Lock it
                         lastDailyTaskDate: new Date().toISOString(),
                         pointHistory: [{
                             id: uuidv4(),
                             date: new Date().toISOString(),
-                            points: reward,
-                            reason: 'Completed Daily Quest',
+                            points: potentialXP,
+                            reason: 'Daily Boost',
                             source: 'daily_task'
                         }, ...state.stats.pointHistory]
                     }
@@ -505,15 +557,15 @@ export const useStore = create<AppState>()(
                 const lastTask = new Date(state.stats.lastDailyTaskDate);
 
                 if (now.toDateString() !== lastTask.toDateString()) {
-                    if (state.stats.dailyTaskCompleted) {
-                        return {
-                            stats: {
-                                ...state.stats,
-                                dailyTaskCompleted: false,
-                                dailyPointsEarned: 0 // Reset daily cap
-                            }
-                        };
-                    }
+                    return {
+                        stats: {
+                            ...state.stats,
+                            dailyTaskCompleted: false,
+                            dailyPointsEarned: 0,
+                            dailyInteractionXP: 0,
+                            dailyCountedXP: 0 // Reset daily cap
+                        }
+                    };
                 }
                 return { stats: state.stats };
             }),
@@ -581,6 +633,8 @@ export const useStore = create<AppState>()(
                         completedChallenges: []
                     },
                     dailyPointsEarned: 0,
+                    dailyInteractionXP: 0,
+                    dailyCountedXP: 0,
                     pointHistory: []
                 },
                 userProfile: null
@@ -591,21 +645,33 @@ export const useStore = create<AppState>()(
                 // If profile already exists, don't reinitialize
                 if (state.userProfile) return state;
 
-                // Generate sequential user ID based on timestamp (simulating unique sequential ID)
-                // In production, this would come from a backend counter
-                const storedCounter = localStorage.getItem('bonder-user-counter');
-                const userCounter = storedCounter ? parseInt(storedCounter, 10) + 1 : 1;
-                localStorage.setItem('bonder-user-counter', userCounter.toString());
+                // Generate a random 4-digit temporary ID
+                const randomTempId = Math.floor(1000 + Math.random() * 9000);
+                const userId = `U-${randomTempId}`;
+                const displayName = `User #${randomTempId}`;
 
                 // Detect timezone
                 const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
                 return {
                     userProfile: {
-                        userId: userCounter,
-                        displayName: `User #${userCounter.toString().padStart(2, '0')}`,
+                        userId: userId,
+                        displayName: displayName,
                         timezone,
-                        createdAt: new Date().toISOString()
+                        createdAt: new Date().toISOString(),
+                        avatar: null,
+                        isPro: false,
+                        isConnected: false // Default to not connected
+                    }
+                };
+            }),
+
+            updateProfile: (updates) => set((state) => {
+                if (!state.userProfile) return state;
+                return {
+                    userProfile: {
+                        ...state.userProfile,
+                        ...updates
                     }
                 };
             }),
@@ -617,6 +683,28 @@ export const useStore = create<AppState>()(
                     userProfile: {
                         ...state.userProfile,
                         displayName: name
+                    }
+                };
+            }),
+
+            // Connect to Cloud (assign permanent ID)
+            connectToCloud: () => set((state) => {
+                if (!state.userProfile || state.userProfile.isConnected) return state;
+
+                // Get next sequential ID from local counter
+                const storedCounter = localStorage.getItem('bonder-user-global-counter');
+                const nextCounter = storedCounter ? parseInt(storedCounter, 10) + 1 : 1;
+                localStorage.setItem('bonder-user-global-counter', nextCounter.toString());
+
+                const permanentId = `U-${nextCounter.toString().padStart(3, '0')}`;
+                const newDisplayName = `User #${nextCounter.toString().padStart(2, '0')}`;
+
+                return {
+                    userProfile: {
+                        ...state.userProfile,
+                        userId: permanentId,
+                        displayName: newDisplayName,
+                        isConnected: true
                     }
                 };
             }),
@@ -634,30 +722,16 @@ export const useStore = create<AppState>()(
             toggleFavorite: (id) => set((state) => ({
                 contacts: state.contacts.map((c) =>
                     c.id === id ? { ...c, isFavorite: !c.isFavorite } : c
-                ),
+                )
+            })),
+
+            toggleNotifications: () => set((state) => ({
+                notificationsEnabled: !state.notificationsEnabled
             })),
 
             getLeaderboard: (type) => {
-                const state = get();
-                const userXP = state.stats.points;
-                const userLevel = Math.floor(userXP / 100) + 1;
-
-                // MOCK DATA - In real app, fetch from backend
-                const globalEntries: LeaderboardEntry[] = [
-                    { id: '1', name: "Sarah K.", points: userXP + 2500, rank: 1, level: Math.floor((userXP + 2500) / 100) + 1, isFriend: false },
-                    { id: '2', name: "Mike R.", points: userXP + 1200, rank: 2, level: Math.floor((userXP + 1200) / 100) + 1, isFriend: false },
-                    { id: '3', name: "Alex T.", points: userXP + 800, rank: 3, level: Math.floor((userXP + 800) / 100) + 1, isFriend: true },
-                    { id: '4', name: "Jessica P.", points: userXP + 400, rank: 4, level: Math.floor((userXP + 400) / 100) + 1, isFriend: false },
-                    // User
-                    { id: 'user', name: state.userProfile?.displayName || "You", points: userXP, rank: 5, level: userLevel, isFriend: false, isUser: true },
-                    { id: '5', name: "David L.", points: Math.max(0, userXP - 200), rank: 6, level: Math.max(1, Math.floor((userXP - 200) / 100) + 1), isFriend: true },
-                ];
-
-                const friendsEntries: LeaderboardEntry[] = globalEntries.filter(e => e.isFriend || e.isUser)
-                    .sort((a, b) => b.points - a.points)
-                    .map((e, index) => ({ ...e, rank: index + 1 }));
-
-                return type === 'global' ? globalEntries : friendsEntries;
+                // Return empty for now as requested earlier
+                return [];
             },
         }),
         {

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Save } from "lucide-react";
 import { Contact, useStore } from "@/lib/store";
+import { AvatarGradient } from "@/components/ui/AvatarGradient";
 
 interface EditContactModalProps {
     isOpen: boolean;
@@ -18,7 +19,20 @@ export function EditContactModal({ isOpen, onClose, contact }: EditContactModalP
     const [email, setEmail] = useState(contact.email || "");
     const [tags, setTags] = useState(contact.tags.join(", "));
     const [frequency, setFrequency] = useState(contact.targetFrequencyDays);
+    const [avatar, setAvatar] = useState(contact.avatar || "");
     const [showCustomInput, setShowCustomInput] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setAvatar(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
     useEffect(() => {
         if (isOpen) {
@@ -35,6 +49,7 @@ export function EditContactModal({ isOpen, onClose, contact }: EditContactModalP
             name,
             phoneNumber: phone || undefined,
             email: email || undefined,
+            avatar: avatar || undefined,
             tags: tags.split(",").map(t => t.trim()).filter(Boolean),
             targetFrequencyDays: frequency
         });
@@ -71,15 +86,54 @@ export function EditContactModal({ isOpen, onClose, contact }: EditContactModalP
 
                         {/* Body */}
                         <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto">
+                            {/* Avatar & Name */}
+                            <div className="flex gap-4 items-start">
+                                <div className="shrink-0 relative group">
+                                    <AvatarGradient name={name} src={avatar} size="lg" />
+                                    <button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                        <span className="text-xs text-white font-bold">Edit</span>
+                                    </button>
+                                    <input
+                                        type="file"
+                                        ref={fileInputRef}
+                                        className="hidden"
+                                        accept="image/*"
+                                        onChange={handleFileChange}
+                                    />
+                                </div>
+                                <div className="flex-1 space-y-3">
+                                    <div>
+                                        <label className="text-sm font-medium text-muted-foreground mb-1 block">Name</label>
+                                        <input
+                                            type="text"
+                                            value={name}
+                                            onChange={(e) => setName(e.target.value)}
+                                            className="w-full px-4 py-3 bg-secondary rounded-xl border-none outline-none focus:ring-2 focus:ring-primary/30 text-foreground"
+                                            placeholder="Contact name"
+                                        />
+                                    </div>
+
+                                </div>
+                            </div>
+
+                            {/* Drift Settings */}
                             <div>
-                                <label className="text-sm font-medium text-muted-foreground mb-1 block">Name</label>
-                                <input
-                                    type="text"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    className="w-full px-4 py-3 bg-secondary rounded-xl border-none outline-none focus:ring-2 focus:ring-primary/30 text-foreground"
-                                    placeholder="Contact name"
-                                />
+                                <label className="text-sm font-medium text-muted-foreground mb-1 block">Reconnect Frequency</label>
+                                <select
+                                    value={frequency}
+                                    onChange={(e) => setFrequency(Number(e.target.value))}
+                                    className="w-full px-4 py-3 bg-secondary rounded-xl border-none outline-none focus:ring-2 focus:ring-primary/30 text-foreground appearance-none"
+                                >
+                                    <option value={7}>Every 7 Days</option>
+                                    <option value={14}>Every 14 Days</option>
+                                    <option value={30}>Every 30 Days</option>
+                                    <option value={90}>Every 90 Days</option>
+                                    <option value={180}>Every 6 Months</option>
+                                    <option value={0}>Never</option>
+                                </select>
                             </div>
                             <div>
                                 <label className="text-sm font-medium text-muted-foreground mb-1 block">Phone</label>
@@ -128,69 +182,28 @@ export function EditContactModal({ isOpen, onClose, contact }: EditContactModalP
                                 {/* Defaults & Actions */}
                                 <div className="space-y-3">
                                     <div className="flex flex-wrap gap-2">
-                                        {['Family', 'Friends', 'Colleagues', 'Other', 'Custom'].map(option => {
-                                            const isActive = option === 'Custom' ? false : tags.includes(option);
+                                        {['Family', 'Friends', 'Colleagues', 'Other'].map(option => {
+                                            const isActive = tags.includes(option);
                                             return (
                                                 <button
                                                     key={option}
                                                     onClick={() => {
-                                                        if (option === 'Custom') {
-                                                            setShowCustomInput(true);
-                                                            setTimeout(() => document.getElementById('custom-tag-input')?.focus(), 100);
-                                                        } else {
-                                                            const currentTags = tags.split(",").map(t => t.trim()).filter(Boolean);
-                                                            if (!currentTags.includes(option)) {
-                                                                setTags([...currentTags, option].join(", "));
-                                                            }
+                                                        const currentTags = tags.split(",").map(t => t.trim()).filter(Boolean);
+                                                        if (!currentTags.includes(option)) {
+                                                            setTags([...currentTags, option].join(", "));
                                                         }
                                                     }}
                                                     className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${isActive
-                                                            ? 'bg-slate-200 text-slate-600 border-slate-300 cursor-default opacity-50'
-                                                            : 'bg-secondary text-muted-foreground border-transparent hover:border-violet-200 dark:hover:border-violet-800'
+                                                        ? 'bg-slate-200 text-slate-600 border-slate-300 cursor-default opacity-50'
+                                                        : 'bg-secondary text-muted-foreground border-transparent hover:border-violet-200 dark:hover:border-violet-800'
                                                         }`}
                                                     disabled={isActive}
                                                 >
-                                                    {option === 'Custom' ? '+ Custom' : option}
+                                                    {option}
                                                 </button>
                                             )
                                         })}
                                     </div>
-
-                                    {/* Custom Input */}
-                                    {showCustomInput && (
-                                        <div className="relative animate-in fade-in slide-in-from-top-2 duration-200">
-                                            <input
-                                                id="custom-tag-input"
-                                                type="text"
-                                                placeholder="Type custom tag and press Enter..."
-                                                className="w-full px-4 py-2 bg-secondary rounded-xl border-none outline-none focus:ring-2 focus:ring-primary/30 text-foreground text-sm"
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        const val = e.currentTarget.value.trim();
-                                                        if (val) {
-                                                            addTag(val);
-                                                            const currentTags = tags.split(",").map(t => t.trim()).filter(Boolean);
-                                                            if (!currentTags.includes(val)) {
-                                                                setTags([...currentTags, val].join(", "));
-                                                            }
-                                                            e.currentTarget.value = "";
-                                                            // User said "whenever they click custom a small option to add custom tag opens up". 
-                                                            // Let's keep it open until they save or maybe add a close button? 
-                                                            // For now, auto-hide on Enter is clean, or keep it. I'll keep it open for multi-add.
-                                                            // Actually, let's keep it open.
-                                                        }
-                                                    }
-                                                }}
-                                                onBlur={(e) => {
-                                                    if (!e.target.value) setShowCustomInput(false);
-                                                }}
-                                            />
-                                            <div className="absolute right-3 top-2.5 text-xs text-muted-foreground pointer-events-none">
-                                                Press Enter
-                                            </div>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
                         </div>

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { MobileFrame } from "@/components/layout/MobileFrame";
 import { BottomNav } from "@/components/layout/BottomNav";
-import { Moon, Bell, Trash2, Download, Shield, X, Zap } from "lucide-react";
+import { Moon, Bell, Trash2, Download, Shield, X, Zap, Mail, Lock } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -12,10 +12,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { SubscriptionModal } from "@/components/monetization/SubscriptionModal";
 import { ProfileModal } from "@/components/modals/ProfileModal";
 import { ResetModal } from "@/components/modals/ResetModal";
+import { ImportReviewModal, ParsedContact } from "@/components/modals/ImportReviewModal";
+import { parseVCF } from "@/lib/vcf-parser";
+import { useRef } from "react";
 
 export default function SettingsPage() {
     const router = useRouter();
     const store = useStore();
+    const { userProfile, updateDisplayName, initializeProfile } = useStore();
     const { theme, setTheme, resolvedTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
 
@@ -25,19 +29,24 @@ export default function SettingsPage() {
     const [showReset, setShowReset] = useState(false);
     const [showSubscription, setShowSubscription] = useState(false);
     const [showProfileModal, setShowProfileModal] = useState(false);
-    // const [isEditingProfile, setIsEditingProfile] = useState(false); // Removed
-    const [userName, setUserName] = useState("Valentine");
     const [userAvatar, setUserAvatar] = useState<string | null>(null);
     const [isPro] = useState(false);
 
+    // Import state
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [parsedContacts, setParsedContacts] = useState<ParsedContact[]>([]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
     useEffect(() => {
         setTimeout(() => setMounted(true), 0);
+        // Initialize profile if not exists
+        initializeProfile();
         // Load settings from local storage if available
         const savedNotifs = localStorage.getItem('bonder_notifications');
         if (savedNotifs !== null) {
             setTimeout(() => setNotificationsEnabled(JSON.parse(savedNotifs)), 0);
         }
-    }, []);
+    }, [initializeProfile]);
 
     const toggleTheme = () => {
         // If current is dark (either set explicitly or by system), switch to light
@@ -76,6 +85,47 @@ export default function SettingsPage() {
         toast.success("Data exported successfully!");
     };
 
+    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        try {
+            const parsed = await parseVCF(file);
+            // Transform to shape needed for modal
+            const contactsForReview: ParsedContact[] = parsed.map(p => ({
+                name: p.name,
+                phone: p.phone || "",
+                email: p.email,
+                included: true
+            }));
+            setParsedContacts(contactsForReview);
+            setShowImportModal(true);
+            // Reset input so same file can be selected again if cancelled
+            e.target.value = '';
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to parse VCF file.");
+        }
+    };
+
+    const handleImportConfig = (selected: ParsedContact[]) => {
+        let count = 0;
+        selected.forEach(p => {
+            // Check for duplicates
+            if (!store.contacts.find(c => c.name === p.name)) {
+                store.addContact({
+                    name: p.name,
+                    phoneNumber: p.phone,
+                    email: p.email,
+                    tags: ['imported'],
+                    targetFrequencyDays: 14
+                });
+                count++;
+            }
+        });
+        toast.success(`Imported ${count} contacts successfully!`);
+    };
+
     // const saveProfile = () => { ... } // Removed
 
     if (!mounted) return <div className="p-6">Loading...</div>;
@@ -84,6 +134,10 @@ export default function SettingsPage() {
         if (!notificationsEnabled) return 'bg-secondary';
         return resolvedTheme === 'dark' ? 'bg-indigo-500' : 'bg-green-500';
     };
+
+    // Get display name from profile
+    const displayName = userProfile?.displayName || "User";
+    const userId = userProfile?.userId || 1;
 
     return (
         <MobileFrame>
@@ -108,12 +162,13 @@ export default function SettingsPage() {
                                     </div>
                                 ) : (
                                     <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/20 text-2xl font-bold text-white border-2 border-white/20">
-                                        {userName.charAt(0).toUpperCase()}
+                                        {displayName.charAt(0).toUpperCase()}
                                     </div>
                                 )}
                                 <div>
-                                    <p className="font-bold text-foreground text-xl leading-tight group-hover:text-primary transition-colors">{userName}</p>
+                                    <p className="font-bold text-foreground text-xl leading-tight group-hover:text-primary transition-colors">{displayName}</p>
                                     <div className="flex items-center gap-2 mt-1.5">
+                                        <span className="text-[10px] text-muted-foreground">ID: #{userId.toString().padStart(4, '0')}</span>
                                         <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-md border ${isPro ? 'bg-violet-500/10 border-violet-500/20 text-violet-500' : 'bg-secondary/50 border-border text-muted-foreground'}`}>
                                             {isPro ? "Bonder Pro" : "Free Plan"}
                                         </span>
@@ -128,6 +183,56 @@ export default function SettingsPage() {
 
                             {/* Decorative background glow for 'Pro' feel */}
                             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                        </div>
+                    </section>
+
+                    {/* Security Section */}
+                    <section>
+                        <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4 px-1">Security</h2>
+                        <div className="glass-card rounded-[1.5rem] overflow-hidden divide-y divide-border/30">
+                            <button
+                                onClick={() => {
+                                    toast.info("Google Sign-in coming soon!");
+                                }}
+                                className="w-full p-5 flex items-center justify-between hover:bg-white/5 transition-colors text-left group"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-white dark:bg-slate-700 rounded-xl flex items-center justify-center shadow-sm">
+                                        <svg className="w-5 h-5" viewBox="0 0 24 24">
+                                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <span className="font-medium text-foreground group-hover:text-primary transition-colors">Connect Google</span>
+                                        <p className="text-xs text-muted-foreground">Sync across devices</p>
+                                    </div>
+                                </div>
+                                <span className="text-xs px-2 py-1 rounded-lg bg-amber-500/10 text-amber-600 font-medium">Soon</span>
+                            </button>
+
+                            <button
+                                onClick={() => {
+                                    toast.info("Email Sign-in coming soon!");
+                                }}
+                                className="w-full p-5 flex items-center justify-between hover:bg-white/5 transition-colors text-left group"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="p-2.5 bg-blue-500/10 rounded-xl text-blue-500"><Mail className="w-5 h-5" /></div>
+                                    <div>
+                                        <span className="font-medium text-foreground group-hover:text-blue-500 transition-colors">Connect Email</span>
+                                        <p className="text-xs text-muted-foreground">Backup with email</p>
+                                    </div>
+                                </div>
+                                <span className="text-xs px-2 py-1 rounded-lg bg-amber-500/10 text-amber-600 font-medium">Soon</span>
+                            </button>
+
+                            <div className="p-4 flex items-center gap-3 bg-emerald-500/5">
+                                <Lock className="w-4 h-4 text-emerald-500" />
+                                <span className="text-xs text-emerald-600 dark:text-emerald-400">Your data is stored locally on your device</span>
+                            </div>
                         </div>
                     </section>
 
@@ -176,6 +281,20 @@ export default function SettingsPage() {
                                     <div className="p-2.5 bg-blue-500/10 rounded-xl text-blue-500"><Download className="w-5 h-5" /></div>
                                     <span className="font-medium text-foreground group-hover:text-blue-500 transition-colors">Export Data</span>
                                 </div>
+                            </button>
+
+                            <button onClick={() => fileInputRef.current?.click()} className="w-full p-5 flex items-center justify-between hover:bg-white/5 transition-colors text-left group">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-2.5 bg-fuchsia-500/10 rounded-xl text-fuchsia-500"><Download className="w-5 h-5 rotate-180" /></div>
+                                    <span className="font-medium text-foreground group-hover:text-fuchsia-500 transition-colors">Import Contacts</span>
+                                </div>
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    className="hidden"
+                                    accept=".vcf"
+                                    onChange={handleFileSelect}
+                                />
                             </button>
 
                             <button onClick={() => setShowPrivacy(true)} className="w-full p-5 flex items-center justify-between hover:bg-white/5 transition-colors text-left group">
@@ -253,10 +372,10 @@ export default function SettingsPage() {
                 <ProfileModal
                     isOpen={showProfileModal}
                     onClose={() => setShowProfileModal(false)}
-                    currentName={userName}
+                    currentName={displayName}
                     currentAvatar={userAvatar}
                     onSaveName={(name) => {
-                        setUserName(name);
+                        updateDisplayName(name);
                         toast.success("Profile updated!");
                     }}
                     onAvatarUpload={(file) => {
@@ -267,9 +386,17 @@ export default function SettingsPage() {
                     }}
                     onUpgrade={() => {
                         setShowProfileModal(false);
-                        setTimeout(() => setShowSubscription(true), 200); // Small delay for smooth transition
+                        setTimeout(() => setShowSubscription(true), 200);
                     }}
                     isPro={isPro}
+                />
+
+                {/* Import Review Modal */}
+                <ImportReviewModal
+                    isOpen={showImportModal}
+                    onClose={() => setShowImportModal(false)}
+                    contacts={parsedContacts}
+                    onConfirm={handleImportConfig}
                 />
             </div>
             <BottomNav />

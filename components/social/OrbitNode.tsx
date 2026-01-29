@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Contact } from '@/lib/store';
+import { useRouter } from 'next/navigation';
 
 interface OrbitNodeProps {
     contact: Contact;
@@ -7,64 +8,59 @@ interface OrbitNodeProps {
     totalInOrbit: number;
     radius: number;
     onDragEnd: (contactId: string, point: { x: number; y: number }) => void;
+    size?: number;
 }
 
-export function OrbitNode({ contact, index, totalInOrbit, radius, onDragEnd }: OrbitNodeProps) {
+export function OrbitNode({ contact, index, totalInOrbit, radius, onDragEnd, size = 56 }: OrbitNodeProps) {
     // Calculate position on the circle
-    // Distribute evenly
     const angle = (2 * Math.PI * index) / totalInOrbit;
     const x = radius * Math.cos(angle);
     const y = radius * Math.sin(angle);
+    const router = useRouter();
 
-    // Colors based on drift status
-    // const statusColors = {
-    //     stable: 'border-emerald-500 bg-emerald-100 text-emerald-700',
-    //     drifting: 'border-amber-400 bg-amber-100 text-amber-700',
-    //     fading: 'border-rose-400 bg-rose-100 text-rose-700',
-    //     ghost: 'border-slate-300 bg-slate-100 text-slate-400 opacity-60',
-    // };
-
-    // Avatar gradient colors based on name
-    const colors = [
-        ['#8B5CF6', '#3B82F6'],
-        ['#EC4899', '#F97316'],
-        ['#10B981', '#3B82F6'],
-        ['#F59E0B', '#EF4444'],
-        ['#6366F1', '#EC4899'],
+    // Consistent Premium Gradient based on name char for subtle variety, but keeping within theme
+    const gradients = [
+        ['#8B5CF6', '#EC4899'], // Violet -> Pink
+        ['#6366F1', '#A855F7'], // Indigo -> Purple
+        ['#EC4899', '#F43F5E'], // Pink -> Rose
+        ['#3B82F6', '#8B5CF6'], // Blue -> Violet
     ];
-    const colorIndex = (contact.name.charCodeAt(0) || 0) % colors.length;
-    const [from, to] = colors[colorIndex];
-
-    // const statusColor = statusColors[contact.driftStatus || 'stable'] || statusColors.stable;
+    const gradientIndex = (contact.name.charCodeAt(0) || 0) % gradients.length;
+    const [from, to] = gradients[gradientIndex];
 
     return (
         <motion.div
             drag
-            dragElastic={0.2}
-            dragMomentum={false}
+            dragMomentum={false} // Stop sliding after drag release for better control
             onDragEnd={(e, info) => onDragEnd(contact.id, info.point)}
-            initial={{ x: 0, y: 0, scale: 0 }}
-            animate={{ x, y, scale: 1 }}
-            className="absolute w-14 h-14 -ml-7 -mt-7 rounded-full shadow-lg cursor-pointer z-10"
-            whileDrag={{ scale: 1.2, zIndex: 50 }}
-            whileTap={{ scale: 1.1 }}
-            whileHover={{ scale: 1.15 }}
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: 1, x, y }}
+            transition={{ type: "spring", stiffness: 100, damping: 20 }}
+            style={{ width: size, height: size, marginLeft: -size / 2, marginTop: -size / 2 }}
+            className="absolute rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing z-10 group"
+            onClick={() => router.push(`/contacts/${contact.id}`)}
+            whileHover={{ scale: 1.15, zIndex: 50, boxShadow: "0 0 20px rgba(139, 92, 246, 0.6)" }}
+            whileTap={{ scale: 0.95 }}
         >
             {/* Gradient Avatar */}
             <div
-                className="w-full h-full rounded-full flex items-center justify-center font-bold text-white shadow-inner"
-                style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}
+                className="w-full h-full rounded-full flex items-center justify-center font-bold text-white relative z-20 overflow-hidden border border-white/20"
+                style={{ background: `linear-gradient(135deg, ${from}, ${to})`, fontSize: size > 20 ? size * 0.4 : 0 }}
             >
-                {contact.name.charAt(0).toUpperCase()}
+                {size > 30 && contact.name.charAt(0).toUpperCase()}
+
+                {/* Shine effect */}
+                <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/20 to-transparent pointer-events-none" />
             </div>
 
-            {/* Status Ring */}
-            <div className={`absolute inset-0 rounded-full border-2 ${contact.driftStatus === 'drifting' ? 'border-amber-400 animate-pulse' : contact.driftStatus === 'fading' ? 'border-rose-400' : 'border-transparent'}`} />
+            {/* Selection/Active Ring */}
+            <div className={`absolute -inset-1 rounded-full border border-white/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${size < 15 ? 'hidden' : ''}`} />
 
-            {/* Tooltip on Hover */}
-            <div className="opacity-0 hover:opacity-100 absolute -bottom-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-3 py-1.5 rounded-lg whitespace-nowrap pointer-events-none transition-opacity shadow-lg z-50">
-                <span className="font-semibold">{contact.name}</span>
-                <span className="text-slate-400 ml-1">({contact.healthScore}%)</span>
+            {/* Premium Tooltip */}
+            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-black/80 backdrop-blur-md border border-white/10 text-white text-[10px] font-medium tracking-wide rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0 whitespace-nowrap z-50 pointer-events-none shadow-xl">
+                {contact.name}
+                {/* Tiny Arrow */}
+                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-black/80 rotate-45 border-t border-l border-white/10" />
             </div>
         </motion.div>
     );

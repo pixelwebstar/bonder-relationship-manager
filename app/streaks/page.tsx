@@ -4,14 +4,20 @@ import { useStore } from "@/lib/store";
 import { MobileFrame } from "@/components/layout/MobileFrame";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { motion } from "framer-motion";
-import { Flame, Trophy, Star, Zap, Globe, Crown } from "lucide-react";
+import { Flame, Trophy, Star, Zap, Globe, Crown, Users, History, TrendingUp } from "lucide-react";
+import { useState } from "react";
+import { formatDistanceToNow } from "date-fns";
 
 export default function StreaksPage() {
-    const { stats } = useStore();
+    const { stats, getLeaderboard } = useStore();
+    const [activeTab, setActiveTab] = useState<'global' | 'friends'>('global');
 
     // Levels logic
     const level = Math.floor(stats.points / 100) + 1;
     const progress = stats.points % 100;
+
+    const leaderboard = getLeaderboard(activeTab);
+    const history = stats.pointHistory || []; // Fallback for safety
 
     return (
         <MobileFrame>
@@ -66,14 +72,44 @@ export default function StreaksPage() {
                     </p>
                 </div>
 
-                {/* Global Leaderboard (Mock - Removed per user request) */}
+                {/* Leaderboard Section */}
                 <div className="mb-8">
-                    <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-                        <Globe className="w-5 h-5 text-indigo-500" /> Global Ranking
-                    </h3>
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                            <Trophy className="w-5 h-5 text-amber-500" /> Leaderboard
+                        </h3>
+                        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                            <button
+                                onClick={() => setActiveTab('global')}
+                                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${activeTab === 'global' ? 'bg-white dark:bg-slate-700 shadow-sm text-foreground' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                                Global
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('friends')}
+                                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${activeTab === 'friends' ? 'bg-white dark:bg-slate-700 shadow-sm text-foreground' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                                Friends
+                            </button>
+                        </div>
+                    </div>
+
                     <div className="glass-card rounded-3xl overflow-hidden divide-y divide-border/50">
-                        {/* Only show User rank for now until backend is ready */}
-                        <LeaderboardItem rank={1} name="You" xp={stats.points} isUser />
+                        {leaderboard.map((entry) => (
+                            <LeaderboardItem
+                                key={entry.id}
+                                rank={entry.rank}
+                                name={entry.name}
+                                xp={entry.points}
+                                isUser={entry.isUser}
+                            />
+                        ))}
+                        {leaderboard.length === 0 && (
+                            <div className="p-8 text-center text-slate-400 text-sm">
+                                <Users className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                                <p>No friends found in ranking yet.</p>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -81,10 +117,40 @@ export default function StreaksPage() {
                 <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
                     <Zap className="w-5 h-5 text-amber-500" /> Daily Quests
                 </h3>
-                <div className="space-y-3">
+                <div className="space-y-3 mb-8">
                     <QuestItem completed={true} title="Daily Check-in" xp={5} />
                     <QuestItem completed={stats.currentStreak > 0} title="Keep streak alive" xp={20} />
                     <QuestItem completed={stats.totalInteractions > 5} title="Log 5 interactions" xp={50} />
+                </div>
+
+                {/* Points History */}
+                <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                    <History className="w-5 h-5 text-violet-500" /> Recent Gains
+                </h3>
+                <div className="glass-card rounded-3xl p-2 max-h-[300px] overflow-y-auto">
+                    {history.length > 0 ? (
+                        <div className="space-y-1">
+                            {history.slice(0, 20).map((item) => (
+                                <div key={item.id} className="flex items-center justify-between p-3 hover:bg-white/5 rounded-xl transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-violet-50 dark:bg-violet-500/10 flex items-center justify-center text-violet-500">
+                                            {item.source === 'daily_task' ? <Zap className="w-4 h-4" /> : <TrendingUp className="w-4 h-4" />}
+                                        </div>
+                                        <div>
+                                            <p className="font-semibold text-sm text-foreground">{item.reason}</p>
+                                            <p className="text-[10px] text-muted-foreground">{formatDistanceToNow(new Date(item.date), { addSuffix: true })}</p>
+                                        </div>
+                                    </div>
+                                    <span className="text-xs font-bold text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded-lg">+{item.points} XP</span>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="p-8 text-center text-slate-400 text-sm">
+                            <History className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                            <p>No history yet. Start bonding!</p>
+                        </div>
+                    )}
                 </div>
 
             </div>

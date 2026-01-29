@@ -13,7 +13,7 @@ import { OrbitView } from "@/components/social/OrbitView";
 import { GhostMode } from "@/components/social/GhostMode";
 import { OnboardingModal } from "@/components/layout/OnboardingModal";
 import { LayoutGrid, CircleDot } from "lucide-react";
-// I'll just import the widget.
+import { getTimeBasedGreeting } from "@/lib/greeting";
 
 // Avatar gradient generator
 function AvatarGradient({ name, size = "md" }: { name: string; size?: "sm" | "md" | "lg" }) {
@@ -53,10 +53,11 @@ function HealthIndicator({ health }: { health: number }) {
 }
 
 export default function Home() {
-  const { contacts, stats, calculateHealth, checkStreak, applyDriftPhysics } = useStore();
+  const { contacts, stats, userProfile, calculateHealth, checkStreak, applyDriftPhysics, initializeProfile } = useStore();
   const [mounted, setMounted] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'orbit'>('list');
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [greeting, setGreeting] = useState("Good Morning");
 
   useEffect(() => {
     setTimeout(() => setMounted(true), 0);
@@ -64,19 +65,38 @@ export default function Home() {
     checkStreak();
     applyDriftPhysics();
 
+    // Initialize user profile if not exists
+    initializeProfile();
+
+    // Set time-based greeting
+    setGreeting(getTimeBasedGreeting());
+
+    // Update greeting every minute
+    const greetingInterval = setInterval(() => {
+      setGreeting(getTimeBasedGreeting());
+    }, 60000);
+
     // Check onboarding status
     const hasOnboarded = localStorage.getItem("bonder_has_onboarded");
     if (!hasOnboarded) {
       setTimeout(() => setShowOnboarding(true), 0);
     }
-  }, [calculateHealth, checkStreak, applyDriftPhysics]);
+
+    return () => clearInterval(greetingInterval);
+  }, [calculateHealth, checkStreak, applyDriftPhysics, initializeProfile]);
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
     localStorage.setItem("bonder_has_onboarded", "true");
   };
 
-  const urgentContacts = [...contacts].sort((a, b) => a.healthScore - b.healthScore).slice(0, 5);
+  const urgentContacts = [...contacts]
+    .filter(c => !c.snoozedUntil || new Date(c.snoozedUntil) <= new Date())
+    .sort((a, b) => a.healthScore - b.healthScore)
+    .slice(0, 5);
+
+  // Get display name from profile
+  const displayName = userProfile?.displayName || "User";
 
   if (!mounted) return null; // Or a loading spinner
 
@@ -93,8 +113,8 @@ export default function Home() {
           className="flex justify-between items-center mb-8"
         >
           <div>
-            <p className="text-sm text-muted-foreground font-medium tracking-wide">Good Morning,</p>
-            <h1 className="text-3xl font-bold text-gradient">Valentine</h1>
+            <p className="text-sm text-muted-foreground font-medium tracking-wide">{greeting},</p>
+            <h1 className="text-3xl font-bold text-gradient">{displayName}</h1>
           </div>
           <Link href="/streaks">
             <motion.div
@@ -207,29 +227,24 @@ export default function Home() {
               {urgentContacts.map((contact, index) => (
                 <Link href={`/contacts/${contact.id}`} key={contact.id}>
                   <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3 + index * 0.1 }}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="glass-card rounded-[1.25rem] p-4 cursor-pointer mb-3 hover:border-primary/50 transition-colors group"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 + index * 0.05 }}
+                    className="glass-card p-4 rounded-2xl flex items-center justify-between cursor-pointer hover:bg-white/90 dark:hover:bg-slate-800/80 transition-colors"
                   >
-                    <div className={`flex items-center gap-4 transition-all duration-500 ${contact.driftStatus === 'fading' ? 'grayscale opacity-70' : ''}`}>
+                    <div className="flex items-center gap-4">
                       <AvatarGradient name={contact.name} />
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-bold text-foreground group-hover:text-primary transition-colors">{contact.name}</h3>
-                            {contact.driftStatus === 'drifting' && <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />}
-                          </div>
-                          <span className="text-xs text-muted-foreground font-medium">
+                      <div>
+                        <h3 className="font-semibold text-foreground">{contact.name}</h3>
+                        <div className="flex items-center gap-2">
+                          <HealthIndicator health={contact.healthScore} />
+                          <span className="text-xs text-slate-400">
                             {formatDistanceToNow(new Date(contact.lastContacted))} ago
                           </span>
                         </div>
-                        <HealthIndicator health={contact.healthScore} />
                       </div>
-                      <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
                     </div>
+                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
                   </motion.div>
                 </Link>
               ))}

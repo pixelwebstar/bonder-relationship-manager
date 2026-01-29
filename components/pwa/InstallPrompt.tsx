@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Share, MoreVertical, PlusSquare, Download } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Share, PlusSquare, Download, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Logo } from "@/components/ui/Logo";
 
 export function InstallPrompt() {
     const [isIOS, setIsIOS] = useState(false);
@@ -10,13 +11,14 @@ export function InstallPrompt() {
     const [isStandalone, setIsStandalone] = useState(true);
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
     const [installStatus, setInstallStatus] = useState<'idle' | 'installing' | 'installed'>('idle');
+    const [showIOSInstructions, setShowIOSInstructions] = useState(false);
+    const [progress, setProgress] = useState(0);
+    const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
-        // Check if running in standalone mode (PWA installed and running)
         const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches ||
             (window.navigator as any).standalone === true;
 
-        // Detect OS
         const userAgent = window.navigator.userAgent.toLowerCase();
         const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
         const isAndroidDevice = /android/.test(userAgent);
@@ -27,28 +29,23 @@ export function InstallPrompt() {
             setIsAndroid(isAndroidDevice);
         }
 
-        // Determine if we should show the prompt (i.e., is NOT standalone)
         let shouldHidePrompt = true;
         if (isMobile && !isStandaloneMode) {
             shouldHidePrompt = false;
         }
 
-        // If app is already installed but opened in browser (heuristic for Android sometimes), 
-        // we might want to show "Open App" immediately? 
-        // For now, respect the standard "not standalone = prompt" logic.
         setIsStandalone(shouldHidePrompt);
 
-        // Capture Android install prompt
         const handleBeforeInstallPrompt = (e: any) => {
             e.preventDefault();
             setDeferredPrompt(e);
         };
 
-        // Capture successful install
         const handleAppInstalled = () => {
+            if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+            setProgress(100);
             setInstallStatus('installed');
             setDeferredPrompt(null);
-            // Optionally close the prompt after a delay or keep "Open App" visible
         };
 
         window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
@@ -62,107 +59,164 @@ export function InstallPrompt() {
     }, []);
 
     const handleInstallClick = async () => {
+        // iOS Flow: Open Instructions
+        if (isIOS) {
+            setShowIOSInstructions(true);
+            return;
+        }
+
+        // Android Flow: Trigger Prompt
         if (deferredPrompt) {
             setInstallStatus('installing');
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            if (outcome === 'accepted') {
-                // Wait for appinstalled event
+            setProgress(0);
+
+            // Simulated progress for 10 seconds (approx)
+            let currentProgress = 0;
+            // 25 ticks * 400ms = 10000ms
+            progressIntervalRef.current = setInterval(() => {
+                currentProgress += 100 / 25; // Increment to reach 100 in 25 ticks
+
+                if (currentProgress >= 100) {
+                    currentProgress = 100;
+                    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+                    // For non-trigger flow (desktop/iOS simulation)
+                    if (!deferredPrompt) setInstallStatus('installed');
+                }
+                setProgress(Math.round(currentProgress));
+            }, 400);
+
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    // Wait for appinstalled
+                } else {
+                    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+                    setInstallStatus('idle');
+                    setProgress(0);
+                }
             } else {
-                setInstallStatus('idle'); // Revert if cancelled
+                // If testing on desktop without install prompt availability, simulate success
+                setTimeout(() => {
+                    setInstallStatus('installed');
+                }, 10000);
             }
         }
     };
 
     const handleOpenApp = () => {
-        // Attempts to launch the app or just closes the modal essentially
-        // On Android, clicking the specific "Open" link in standard prompts works, 
-        // but custom button behaviors are limited. 
-        // We will try opening the manifest start_url.
         window.open('/?source=pwa', '_blank');
     };
 
-    // If it's standalone, render nothing
     if (isStandalone) return null;
 
     return (
-        <div className="fixed inset-0 z-[99999] bg-background/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
-            <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="max-w-md w-full bg-card border border-border rounded-[2rem] p-8 shadow-2xl"
-            >
-                <div className="w-20 h-20 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-lg shadow-violet-500/30">
-                    <span className="text-4xl font-bold text-white">B</span>
-                </div>
+        <AnimatePresence>
+            {!isStandalone && (
+                <div className="fixed inset-0 z-[99999] flex items-end sm:items-center justify-center pointer-events-none">
+                    {/* Backdrop */}
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-auto" />
 
-                <h2 className="text-2xl font-bold mb-3">
-                    {installStatus === 'installed' ? 'App Installed!' : 'Install Bond'}
-                </h2>
-                <p className="text-muted-foreground mb-8">
-                    {installStatus === 'installed'
-                        ? 'Bonder has been successfully installed to your home screen.'
-                        : 'To use Bond, you need to add it to your home screen.'}
-                </p>
+                    <motion.div
+                        initial={{ opacity: 0, y: 100, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 100, scale: 0.95 }}
+                        className="relative w-full max-w-sm m-4 mb-8 sm:mb-auto bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-[2rem] shadow-2xl p-6 pointer-events-auto overflow-hidden"
+                    >
+                        {/* Glow Effects */}
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-violet-500/20 blur-[60px] rounded-full pointer-events-none" />
 
-                {isIOS && (
-                    <div className="space-y-6 text-left bg-secondary/50 p-6 rounded-2xl">
-                        <div className="flex items-center gap-4">
-                            <span className="w-8 h-8 flex items-center justify-center bg-background rounded-full font-bold text-primary shadow-sm">1</span>
-                            <p className="font-medium">Tap the <Share className="inline w-5 h-5 mx-1" /> Share button</p>
-                        </div>
-                        <div className="w-px h-4 bg-border ml-4 my-1 opacity-50" />
-                        <div className="flex items-center gap-4">
-                            <span className="w-8 h-8 flex items-center justify-center bg-background rounded-full font-bold text-primary shadow-sm">2</span>
-                            <p className="font-medium">Select <span className="font-bold">Add to Home Screen</span> <PlusSquare className="inline w-5 h-5 mx-1" /></p>
-                        </div>
-                    </div>
-                )}
+                        {/* Content */}
+                        <div className="relative z-10 flex flex-col items-center text-center">
 
-                {isAndroid && (
-                    <div className="space-y-4">
-                        {installStatus === 'installed' ? (
-                            <button
-                                onClick={handleOpenApp}
-                                className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-green-500/25 transition-all active:scale-95"
-                            >
-                                Open App
-                            </button>
-                        ) : deferredPrompt ? (
-                            <button
-                                onClick={handleInstallClick}
-                                disabled={installStatus === 'installing'}
-                                className="w-full py-4 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-violet-500/25 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
-                            >
-                                {installStatus === 'installing' ? (
-                                    <>
-                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        Installing...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Download className="w-5 h-5" />
-                                        Install App
-                                    </>
-                                )}
-                            </button>
-                        ) : (
-                            // Fallback instructions if automated prompt fails or is ignored
-                            <div className="space-y-6 text-left bg-secondary/50 p-6 rounded-2xl">
-                                <div className="flex items-center gap-4">
-                                    <span className="w-8 h-8 flex items-center justify-center bg-background rounded-full font-bold text-primary shadow-sm">1</span>
-                                    <p className="font-medium">Tap the menu <MoreVertical className="inline w-5 h-5 mx-1" /></p>
-                                </div>
-                                <div className="w-px h-4 bg-border ml-4 my-1 opacity-50" />
-                                <div className="flex items-center gap-4">
-                                    <span className="w-8 h-8 flex items-center justify-center bg-background rounded-full font-bold text-primary shadow-sm">2</span>
-                                    <p className="font-medium">Select <span className="font-bold">Install App</span></p>
-                                </div>
+                            {/* Logo */}
+                            <div className="mb-6">
+                                <Logo showText={false} className="w-16 h-16" />
                             </div>
-                        )}
-                    </div>
-                )}
-            </motion.div>
-        </div>
+
+                            {/* Text */}
+                            <h2 className="text-xl font-bold text-white mb-1">
+                                {installStatus === 'installed' ? 'Welcome to Bond' : 'Install Bond'}
+                            </h2>
+                            <p className="text-slate-400 text-sm mb-6 leading-relaxed px-4">
+                                {installStatus === 'installed'
+                                    ? 'Bonder is ready. Open the app to continue.'
+                                    : 'Manage relationships effectively. Add the app to your home screen for the best experience.'}
+                            </p>
+
+                            {/* Actions */}
+                            {installStatus === 'installed' ? (
+                                <button
+                                    onClick={handleOpenApp}
+                                    className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-xl shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                                >
+                                    Open App <ChevronRight className="w-4 h-4" />
+                                </button>
+                            ) : (
+                                !showIOSInstructions ? (
+                                    <button
+                                        onClick={handleInstallClick}
+                                        disabled={installStatus === 'installing'}
+                                        className="w-full py-3.5 bg-white text-slate-900 font-bold rounded-xl shadow-lg shadow-white/10 hover:bg-slate-50 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                                    >
+                                        {installStatus === 'installing' ? (
+                                            <>
+                                                <div className="w-4 h-4 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" />
+                                                <span className="tabular-nums font-mono">{progress}%</span>
+                                                Installing...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Download className="w-4 h-4" />
+                                                Install App
+                                            </>
+                                        )}
+                                    </button>
+                                ) : (
+                                    <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        className="w-full space-y-4"
+                                    >
+                                        <div className="bg-white/5 border border-white/5 rounded-xl p-4 text-left space-y-3">
+                                            <div className="flex items-center gap-3 text-slate-200 animate-pulse">
+                                                <div className="w-6 h-6 bg-white/10 rounded-full flex items-center justify-center text-xs font-bold">1</div>
+                                                <p className="text-sm font-medium">Tap the <Share className="inline w-4 h-4 mx-1 text-blue-400" /> Share button</p>
+                                            </div>
+                                            <div className="w-full h-px bg-white/5" />
+                                            <div className="flex items-center gap-3 text-slate-200">
+                                                <div className="w-6 h-6 bg-white/10 rounded-full flex items-center justify-center text-xs font-bold">2</div>
+                                                <p className="text-sm font-medium">Select <span className="font-bold text-white">Add to Home Screen</span> <PlusSquare className="inline w-4 h-4 mx-1" /></p>
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            onClick={() => setShowIOSInstructions(false)}
+                                            className="text-xs text-slate-500 hover:text-white transition-colors"
+                                        >
+                                            Cancel or go back
+                                        </button>
+                                    </motion.div>
+                                )
+                            )}
+
+                            {/* Testing Utilities */}
+                            {process.env.NODE_ENV === 'development' && installStatus === 'installed' && (
+                                <button
+                                    onClick={() => {
+                                        setInstallStatus('idle');
+                                        setProgress(0);
+                                        // Force UI reset for testing
+                                    }}
+                                    className="mt-4 text-xs text-slate-500 hover:text-rose-400 transition-colors uppercase tracking-wider font-bold"
+                                >
+                                    [DEV] Reset Install State
+                                </button>
+                            )}
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+        </AnimatePresence>
     );
 }

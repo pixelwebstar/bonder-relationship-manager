@@ -101,11 +101,7 @@ export function PaymentModal({ isOpen, onClose, onComplete }: PaymentModalProps)
                                                         <p className="text-sm text-muted-foreground">{opt.desc}</p>
                                                     </div>
 
-                                                    {isSelected && (
-                                                        <motion.div layoutId="check" className="absolute right-4 top-4 text-primary">
-                                                            <div className="w-4 h-4 rounded-full bg-primary shadow-[0_0_10px_rgba(139,92,246,0.5)]" />
-                                                        </motion.div>
-                                                    )}
+
                                                 </button>
                                             );
                                         })}

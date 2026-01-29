@@ -645,10 +645,9 @@ export const useStore = create<AppState>()(
                 // If profile already exists, don't reinitialize
                 if (state.userProfile) return state;
 
-                // Generate a random 4-digit temporary ID
-                const randomTempId = Math.floor(1000 + Math.random() * 9000);
-                const userId = `U-${randomTempId}`;
-                const displayName = `User #${randomTempId}`;
+                // Default placeholder ID (10 zeros)
+                const userId = "U-0000000000";
+                const displayName = "Valentine";
 
                 // Detect timezone
                 const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -696,14 +695,13 @@ export const useStore = create<AppState>()(
                 const nextCounter = storedCounter ? parseInt(storedCounter, 10) + 1 : 1;
                 localStorage.setItem('bonder-user-global-counter', nextCounter.toString());
 
-                const permanentId = `U-${nextCounter.toString().padStart(3, '0')}`;
-                const newDisplayName = `User #${nextCounter.toString().padStart(2, '0')}`;
+                // Format: U-0000000001 (10 digits total)
+                const permanentId = `U-${nextCounter.toString().padStart(10, '0')}`;
 
                 return {
                     userProfile: {
                         ...state.userProfile,
                         userId: permanentId,
-                        displayName: newDisplayName,
                         isConnected: true
                     }
                 };

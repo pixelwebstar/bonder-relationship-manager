@@ -15,6 +15,10 @@ import { ResetModal } from "@/components/modals/ResetModal";
 import { ImportReviewModal, ParsedContact } from "@/components/modals/ImportReviewModal";
 import { parseVCF } from "@/lib/vcf-parser";
 import { useRef } from "react";
+import { auth, db, googleProvider } from "@/lib/firebase";
+import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { CloudSyncModal } from "@/components/modals/CloudSyncModal";
 
 export default function SettingsPage() {
     const router = useRouter();
@@ -43,6 +47,11 @@ export default function SettingsPage() {
     const [showImportModal, setShowImportModal] = useState(false);
     const [parsedContacts, setParsedContacts] = useState<ParsedContact[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    // Cloud Sync State
+    const [showCloudSyncModal, setShowCloudSyncModal] = useState(false);
+    const [pendingCloudData, setPendingCloudData] = useState<any>(null);
+    const [pendingUser, setPendingUser] = useState<any>(null);
+
 
     useEffect(() => {
         setTimeout(() => setMounted(true), 0);
@@ -145,76 +154,200 @@ export default function SettingsPage() {
                     {/* Account Section - Fully Clickable */}
                     <section>
                         <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4 px-1">Account</h2>
-                        <div
-                            onClick={() => setShowProfileModal(true)}
-                            className="glass-card rounded-[1.5rem] p-4 flex items-center justify-between cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-all active:scale-[0.98] group relative overflow-hidden"
-                        >
-                            <div className="flex items-center gap-4 relative z-10">
-                                {userProfile?.avatar ? (
-                                    <div className="w-14 h-14 rounded-full overflow-hidden shadow-lg shadow-violet-500/20 border-2 border-white/20">
-                                        <img src={userProfile.avatar} alt="Profile" className="w-full h-full object-cover" />
-                                    </div>
-                                ) : (
-                                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/20 text-xl font-bold text-white border-2 border-white/10">
-                                        {userProfile?.displayName.charAt(0).toUpperCase()}
-                                    </div>
-                                )}
-                                <div>
-                                    <p className="font-bold text-foreground text-lg leading-tight transition-colors">{userProfile?.displayName}</p>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <span className="text-[10px] text-muted-foreground/60 transition-colors uppercase tracking-wider font-bold">ID: {userProfile?.userId}</span>
-                                        <span className={`text-[9px] uppercase font-black px-1.5 py-0.5 rounded-md border ${userProfile?.isPro ? 'bg-violet-500 text-white border-transparent' : 'bg-secondary/50 border-border text-muted-foreground'}`}>
-                                            {userProfile?.isPro ? "Pro" : "Free"}
-                                        </span>
+                        <div className="glass-card rounded-[1.5rem] overflow-hidden">
+                            <div
+                                onClick={() => setShowProfileModal(true)}
+                                className="p-4 w-full flex items-center justify-between cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-all active:scale-[0.98] group relative"
+                            >
+                                <div className="flex items-center gap-4 relative z-10">
+                                    {userProfile?.avatar ? (
+                                        <div className="w-14 h-14 rounded-full overflow-hidden shadow-lg shadow-violet-500/20 border-2 border-white/20">
+                                            <img src={userProfile.avatar} alt="Profile" className="w-full h-full object-cover" />
+                                        </div>
+                                    ) : (
+                                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/20 text-xl font-bold text-white border-2 border-white/10">
+                                            {userProfile?.displayName.charAt(0).toUpperCase()}
+                                        </div>
+                                    )}
+                                    <div>
+                                        <p className="font-bold text-foreground text-lg leading-tight transition-colors">{userProfile?.displayName}</p>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className="text-[10px] text-muted-foreground/60 transition-colors uppercase tracking-wider font-bold">ID: {userProfile?.userId}</span>
+                                            <span className={`text-[9px] uppercase font-black px-1.5 py-0.5 rounded-md border ${userProfile?.isPro ? 'bg-violet-500 text-white border-transparent' : 'bg-secondary/50 border-border text-muted-foreground'}`}>
+                                                {userProfile?.isPro ? "Pro" : "Free"}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            {/* Decorative background glow for 'Pro' feel */}
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                                {/* Decorative background glow for 'Pro' feel */}
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                            </div>
                         </div>
                     </section>
 
-                    {/* Security Section */}
+                    {/* Security & Cloud Sync */}
                     <section>
-                        <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4 px-1">Security</h2>
-                        <div className="glass-card rounded-[1.5rem] overflow-hidden">
+                        <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4 px-1 flex items-center gap-2">
+                            Security & Cloud
+                            {isConnected && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
+                        </h2>
+                        <div className="glass-card rounded-[2rem] overflow-hidden border border-white/10 relative group">
+                            {/* Animated background glow when connected */}
+                            {isConnected && (
+                                <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                            )}
+
                             <button
-                                onClick={() => {
-                                    // Use the new connectToCloud action
-                                    const { connectToCloud } = useStore.getState();
-                                    connectToCloud();
-                                    toast.success("Connected to Bonder Cloud! Permanent ID assigned.");
+                                onClick={async () => {
+                                    if (isConnected) return; // Already connected
+                                    try {
+                                        const result = await signInWithPopup(auth, googleProvider);
+                                        const user = result.user;
+                                        setPendingUser(user);
+
+                                        const docRef = doc(db, "users", user.uid);
+                                        const docSnap = await getDoc(docRef);
+
+                                        if (docSnap.exists()) {
+                                            setPendingCloudData(docSnap.data());
+                                            setShowCloudSyncModal(true);
+                                        } else {
+                                            const state = useStore.getState();
+                                            const dataToSave = {
+                                                contacts: state.contacts,
+                                                stats: state.stats,
+                                                userProfile: {
+                                                    ...state.userProfile,
+                                                    userId: user.uid,
+                                                    isConnected: true,
+                                                    displayName: user.displayName || state.userProfile?.displayName,
+                                                    avatar: user.photoURL || state.userProfile?.avatar
+                                                },
+                                                availableTags: state.availableTags,
+                                                lastUpdated: new Date().toISOString()
+                                            };
+                                            await setDoc(docRef, dataToSave);
+                                            updateProfile({
+                                                userId: user.uid,
+                                                isConnected: true,
+                                                displayName: user.displayName || state.userProfile?.displayName,
+                                                avatar: user.photoURL || state.userProfile?.avatar
+                                            });
+                                            toast.success("Connected & Backed up!");
+                                        }
+                                    } catch (error: any) {
+                                        console.error(error);
+                                        if (error?.code === 'auth/popup-closed-by-user') {
+                                            toast.info("Connection cancelled.");
+                                        } else {
+                                            toast.error("Connection failed");
+                                        }
+                                    }
                                 }}
-                                className="w-full p-5 flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/5 transition-all active:scale-[0.98] text-left group"
+                                className={`w-full p-6 flex items-center justify-between transition-all duration-500 relative z-10 ${isConnected ? 'cursor-default' : 'hover:bg-white/5 active:scale-[0.99]'}`}
                             >
-                                <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 bg-white dark:bg-slate-700 rounded-xl flex items-center justify-center shadow-sm">
-                                        <svg className="w-5 h-5" viewBox="0 0 24 24">
+                                <div className="flex items-center gap-5">
+                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl transition-all duration-500 ${isConnected ? 'bg-emerald-500/10 scale-110' : 'bg-white dark:bg-slate-800'}`}>
+                                        <svg className="w-7 h-7" viewBox="0 0 24 24">
                                             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                                             <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
                                             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
                                             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                                         </svg>
                                     </div>
-                                    <div>
-                                        <span className="font-medium text-foreground">Connect Google</span>
-                                        <p className="text-xs text-muted-foreground">{isConnected ? "Successfully synced" : "Sync across devices"}</p>
+                                    <div className="space-y-1">
+                                        <h3 className="text-lg font-bold text-foreground">Google Cloud Sync</h3>
+                                        <p className="text-xs text-muted-foreground/80 font-medium">
+                                            {isConnected
+                                                ? "Your relationships are secured in the cloud"
+                                                : "Secure your data and sync across all devices"}
+                                        </p>
                                     </div>
                                 </div>
-                                {isConnected ? (
-                                    <div className="p-1 px-2 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-bold">LOCKED</div>
-                                ) : (
-                                    <span className="text-[10px] px-2 py-1 rounded-lg bg-primary/10 text-primary font-black uppercase">Start</span>
-                                )}
+
+                                <div className="flex flex-col items-end gap-2">
+                                    {isConnected ? (
+                                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 shadow-lg shadow-emerald-500/5">
+                                            <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                                            <span className="text-[10px] font-black uppercase tracking-tighter text-emerald-500">Verified</span>
+                                        </div>
+                                    ) : (
+                                        <div className="p-2 px-4 rounded-xl bg-primary text-primary-foreground font-black text-[11px] uppercase tracking-wider shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all active:scale-95">
+                                            Connect
+                                        </div>
+                                    )}
+                                </div>
                             </button>
 
-                            <div className="p-4 flex items-center gap-3 bg-emerald-500/5">
-                                <Lock className="w-4 h-4 text-emerald-500" />
-                                <span className="text-xs text-emerald-600 dark:text-emerald-400">Your data is stored locally on your device</span>
+                            <div className="px-6 py-4 bg-black/5 dark:bg-white/5 border-t border-white/5 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Lock className="w-3.5 h-3.5 text-muted-foreground/60" />
+                                    <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">End-to-End Local Privacy</span>
+                                </div>
+                                {isConnected && (
+                                    <span className="text-[9px] font-medium text-emerald-500/60 uppercase tracking-tight italic">Auto-sync active</span>
+                                )}
                             </div>
                         </div>
                     </section>
+
+
+                    {/* Cloud Sync Modal */}
+                    <CloudSyncModal
+                        isOpen={showCloudSyncModal}
+                        onClose={() => setShowCloudSyncModal(false)}
+                        cloudDate={pendingCloudData?.lastUpdated}
+                        localDate={useStore.getState().stats.lastActiveDate}
+                        onRestore={() => {
+                            if (pendingCloudData) {
+                                // Restore data from cloud
+                                useStore.setState({
+                                    contacts: pendingCloudData.contacts || [],
+                                    stats: pendingCloudData.stats || useStore.getState().stats,
+                                    userProfile: {
+                                        ...pendingCloudData.userProfile,
+                                        isConnected: true // Ensure connected state
+                                    },
+                                    availableTags: pendingCloudData.availableTags || useStore.getState().availableTags
+                                });
+                                toast.success("Account restored from cloud!");
+                                setShowCloudSyncModal(false);
+                                setTimeout(() => window.location.reload(), 500);
+                            }
+                        }}
+                        onOverwrite={async () => {
+                            if (pendingUser) {
+                                // Save local data to cloud
+                                const state = useStore.getState();
+                                const dataToSave = {
+                                    contacts: state.contacts,
+                                    stats: state.stats,
+                                    userProfile: { ...state.userProfile, userId: pendingUser.uid, isConnected: true },
+                                    availableTags: state.availableTags,
+                                    lastUpdated: new Date().toISOString()
+                                };
+
+                                try {
+                                    await setDoc(doc(db, "users", pendingUser.uid), dataToSave);
+
+                                    // Update local state to reflect connection
+                                    updateProfile({
+                                        userId: pendingUser.uid,
+                                        isConnected: true,
+                                        displayName: pendingUser.displayName || state.userProfile?.displayName,
+                                        avatar: pendingUser.photoURL || state.userProfile?.avatar
+                                    });
+
+                                    toast.success("Local data saved to cloud!");
+                                    setShowCloudSyncModal(false);
+                                } catch (error) {
+                                    console.error(error);
+                                    toast.error("Failed to save to cloud.");
+                                }
+                            }
+                        }}
+                    />
 
                     {/* Preferences */}
                     <section>

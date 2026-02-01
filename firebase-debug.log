@@ -1,0 +1,45 @@
+[debug] [2026-02-01T02:26:05.356Z] ----------------------------------------------------------------------
+[debug] [2026-02-01T02:26:05.360Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Valentine\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js projects:create pixelwebstar-bonder-crm-v1 --display-name Bonder CRM --json
+[debug] [2026-02-01T02:26:05.360Z] CLI Version:   15.5.1
+[debug] [2026-02-01T02:26:05.360Z] Platform:      win32
+[debug] [2026-02-01T02:26:05.360Z] Node Version:  v24.12.0
+[debug] [2026-02-01T02:26:05.360Z] Time:          Sat Jan 31 2026 19:26:05 GMT-0700 (Mountain Standard Time)
+[debug] [2026-02-01T02:26:05.361Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-02-01T02:26:05.369Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-02-01T02:26:05.370Z] > authorizing via signed-in user (pixelwebstar@gmail.com)
+[debug] [2026-02-01T02:26:05.375Z] Checked if tokens are valid: true, expires at: 1769916077577
+[debug] [2026-02-01T02:26:05.375Z] Checked if tokens are valid: true, expires at: 1769916077577
+[debug] [2026-02-01T02:26:05.377Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects [none]
+[debug] [2026-02-01T02:26:05.377Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects {"projectId":"pixelwebstar-bonder-crm-v1","name":"Bonder CRM"}
+[debug] [2026-02-01T02:26:05.832Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects 200
+[debug] [2026-02-01T02:26:05.832Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects {"name":"operations/create_project.global.6494146939480077517"}
+[debug] [2026-02-01T02:26:05.835Z] Checked if tokens are valid: true, expires at: 1769916077577
+[debug] [2026-02-01T02:26:05.835Z] Checked if tokens are valid: true, expires at: 1769916077577
+[debug] [2026-02-01T02:26:05.836Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/operations/create_project.global.6494146939480077517 [none]
+[debug] [2026-02-01T02:26:05.988Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/operations/create_project.global.6494146939480077517 200
+[debug] [2026-02-01T02:26:05.988Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/operations/create_project.global.6494146939480077517 {"name":"operations/create_project.global.6494146939480077517"}
+[debug] [2026-02-01T02:26:06.501Z] [Project Creation Poller] Retrying task index 0
+[debug] [2026-02-01T02:26:06.502Z] Checked if tokens are valid: true, expires at: 1769916077577
+[debug] [2026-02-01T02:26:06.502Z] Checked if tokens are valid: true, expires at: 1769916077577
+[debug] [2026-02-01T02:26:06.502Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/operations/create_project.global.6494146939480077517 [none]
+[debug] [2026-02-01T02:26:06.613Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/operations/create_project.global.6494146939480077517 200
+[debug] [2026-02-01T02:26:06.614Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/operations/create_project.global.6494146939480077517 {"name":"operations/create_project.global.6494146939480077517"}
+[debug] [2026-02-01T02:26:07.618Z] [Project Creation Poller] Retrying task index 0
+[debug] [2026-02-01T02:26:07.619Z] Checked if tokens are valid: true, expires at: 1769916077577
+[debug] [2026-02-01T02:26:07.619Z] Checked if tokens are valid: true, expires at: 1769916077577
+[debug] [2026-02-01T02:26:07.619Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/operations/create_project.global.6494146939480077517 [none]
+[debug] [2026-02-01T02:26:07.743Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/operations/create_project.global.6494146939480077517 200
+[debug] [2026-02-01T02:26:07.743Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/operations/create_project.global.6494146939480077517 {"name":"operations/create_project.global.6494146939480077517","metadata":{"@type":"type.googleapis.com/google.cloudresourcemanager.v1.ProjectCreationStatus","gettable":true,"ready":true},"done":true,"response":{"@type":"type.googleapis.com/google.cloudresourcemanager.v1.Project","projectNumber":"497873137484","projectId":"pixelwebstar-bonder-crm-v1","lifecycleState":"ACTIVE","name":"Bonder CRM","createTime":"2026-02-01T02:26:07.633593Z"}}
+[debug] [2026-02-01T02:26:07.748Z] Checked if tokens are valid: true, expires at: 1769916077577
+[debug] [2026-02-01T02:26:07.749Z] Checked if tokens are valid: true, expires at: 1769916077577
+[debug] [2026-02-01T02:26:07.750Z] >>> [apiv2][query] POST https://firebase.googleapis.com/v1beta1/projects/pixelwebstar-bonder-crm-v1:addFirebase [none]
+[debug] [2026-02-01T02:26:08.549Z] <<< [apiv2][status] POST https://firebase.googleapis.com/v1beta1/projects/pixelwebstar-bonder-crm-v1:addFirebase 403
+[debug] [2026-02-01T02:26:08.549Z] <<< [apiv2][body] POST https://firebase.googleapis.com/v1beta1/projects/pixelwebstar-bonder-crm-v1:addFirebase {"error":{"code":403,"message":"The caller does not have permission","status":"PERMISSION_DENIED"}}
+[debug] [2026-02-01T02:26:08.552Z] Request to https://firebase.googleapis.com/v1beta1/projects/pixelwebstar-bonder-crm-v1:addFirebase had HTTP Error: 403, The caller does not have permission
+[debug] [2026-02-01T02:26:08.705Z] FirebaseError: Request to https://firebase.googleapis.com/v1beta1/projects/pixelwebstar-bonder-crm-v1:addFirebase had HTTP Error: 403, The caller does not have permission
+    at responseToError (C:\Users\Valentine\AppData\Roaming\npm\node_modules\firebase-tools\lib\responseToError.js:53:12)
+    at RetryOperation._fn (C:\Users\Valentine\AppData\Roaming\npm\node_modules\firebase-tools\lib\apiv2.js:330:77)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+[error] 
+[error] Error: Failed to add Firebase to Google Cloud Platform project. See firebase-debug.log for more info.

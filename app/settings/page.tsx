@@ -57,7 +57,7 @@ export default function SettingsPage() {
             }
         });
         return () => unsubscribe();
-    }, [isConnected, updateProfile]); // Fewer dependencies to prevent excessive re-renders
+    }, [isConnected, updateProfile, displayName, userAvatar]);
 
     // Import state
     const [showImportModal, setShowImportModal] = useState(false);
@@ -211,7 +211,23 @@ export default function SettingsPage() {
                                 <button
                                     disabled={isConnecting}
                                     onClick={async () => {
-                                        if (isConnected || isConnecting) return;
+                                        if (isConnecting) return;
+
+                                        // Handle Disconnect
+                                        if (isConnected) {
+                                            try {
+                                                await auth.signOut();
+                                                updateProfile({ isConnected: false, userId: '' });
+                                                toast.success("Disconnected from Cloud");
+                                            } catch (err) {
+                                                // Fallback reset
+                                                updateProfile({ isConnected: false, userId: '' });
+                                                toast.info("Connection reset");
+                                            }
+                                            return;
+                                        }
+
+                                        // Handle Connect
                                         setIsConnecting(true);
                                         try {
                                             console.log("Starting Google Login...");
@@ -266,7 +282,7 @@ export default function SettingsPage() {
                                             setIsConnecting(false);
                                         }
                                     }}
-                                    className={`w-full p-5 flex items-center justify-between transition-all active:scale-[0.98] text-left group ${isConnected ? 'cursor-default' : 'hover:bg-black/5 dark:hover:bg-white/5'} ${isConnecting ? 'opacity-70 pointer-events-none' : ''}`}
+                                    className={`w-full p-5 flex items-center justify-between transition-all active:scale-[0.98] text-left group hover:bg-black/5 dark:hover:bg-white/5 ${isConnecting ? 'opacity-70 pointer-events-none' : ''}`}
                                 >
                                     <div className="flex items-center gap-4">
                                         <div className="w-10 h-10 bg-white dark:bg-slate-700 rounded-xl flex items-center justify-center shadow-sm relative">
@@ -282,41 +298,16 @@ export default function SettingsPage() {
                                             )}
                                         </div>
                                         <div>
-                                            <span className="font-medium text-foreground">{isConnecting ? "Authenticating..." : "Connect Google"}</span>
-                                            <p className="text-xs text-muted-foreground">{isConnected ? "Successfully synced" : "Sync across all your devices"}</p>
+                                            <span className="font-medium text-foreground">{isConnecting ? "Authenticating..." : isConnected ? "Sync Database" : "Connect Google"}</span>
+                                            <p className="text-xs text-muted-foreground">{isConnected ? "Cloud storage active" : "Sync across all your devices"}</p>
                                         </div>
                                     </div>
                                     {isConnected ? (
-                                        <div className="p-1 px-2 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-bold tracking-tight">CONNECTED</div>
+                                        <span className="text-[10px] px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-500 font-bold uppercase tracking-wider group-hover:bg-rose-500 group-hover:text-white transition-colors">Disconnect</span>
                                     ) : (
-                                        <span className="text-[10px] px-2 py-1 rounded-lg bg-primary/10 text-primary font-black uppercase tracking-wider">{isConnecting ? "..." : "Start"}</span>
+                                        <span className="text-[10px] px-3 py-1.5 rounded-lg bg-primary/10 text-primary font-bold uppercase tracking-wider group-hover:bg-primary group-hover:text-black transition-colors">{isConnecting ? "..." : "Connect"}</span>
                                     )}
                                 </button>
-
-                                {isConnected && (
-                                    <div className="px-5 py-3 bg-rose-500/5 border-t border-black/5 dark:border-white/5 flex items-center justify-between">
-                                        <div className="flex flex-col">
-                                            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tight">Status</span>
-                                            <span className="text-[10px] font-medium text-emerald-500 uppercase tracking-widest italic">Live Protection On</span>
-                                        </div>
-                                        <button
-                                            onClick={async (e) => {
-                                                e.stopPropagation();
-                                                try {
-                                                    await auth.signOut();
-                                                    updateProfile({ isConnected: false, userId: '' });
-                                                    toast.success("Connection reset locally");
-                                                } catch (err) {
-                                                    updateProfile({ isConnected: false, userId: '' });
-                                                    toast.info("Connection reset");
-                                                }
-                                            }}
-                                            className="text-[10px] font-bold text-rose-500 hover:text-rose-600 transition-all uppercase tracking-widest bg-rose-500/10 hover:bg-rose-500/20 px-4 py-2 rounded-xl border border-rose-500/10"
-                                        >
-                                            Disconnect
-                                        </button>
-                                    </div>
-                                )}
                             </div>
                         </div>
                     </section>

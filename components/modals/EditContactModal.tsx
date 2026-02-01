@@ -36,11 +36,13 @@ export function EditContactModal({ isOpen, onClose, contact }: EditContactModalP
 
     useEffect(() => {
         if (isOpen) {
-            setName(contact.name);
-            setPhone(contact.phoneNumber || "");
-            setEmail(contact.email || "");
-            setTags(contact.tags.join(", "));
-            setFrequency(contact.targetFrequencyDays);
+            setTimeout(() => {
+                setName(contact.name);
+                setPhone(contact.phoneNumber || "");
+                setEmail(contact.email || "");
+                setTags(contact.tags.join(", "));
+                setFrequency(contact.targetFrequencyDays);
+            }, 0);
         }
     }, [isOpen, contact]);
 

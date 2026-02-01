@@ -20,6 +20,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://bonder-app.vercel.app'),
   title: "Bonder | Relationship Manager",
   description: "Maintain meaningful connections with your personal CRM.",
   manifest: "/manifest.json",

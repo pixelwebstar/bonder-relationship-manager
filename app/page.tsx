@@ -29,6 +29,18 @@ export default function Home() {
   const [greeting, setGreeting] = useState("Good Morning");
 
   useEffect(() => {
+    // Set initial greeting
+    setGreeting(getTimeBasedGreeting());
+
+    // Update greeting every minute
+    const greetingInterval = setInterval(() => {
+      setGreeting(getTimeBasedGreeting());
+    }, 60000);
+
+    return () => clearInterval(greetingInterval);
+  }, []);
+
+  useEffect(() => {
     setTimeout(() => setMounted(true), 0);
     calculateHealth();
     checkStreak();
@@ -37,21 +49,11 @@ export default function Home() {
     // Initialize user profile if not exists
     initializeProfile();
 
-    // Set time-based greeting
-    setGreeting(getTimeBasedGreeting());
-
-    // Update greeting every minute
-    const greetingInterval = setInterval(() => {
-      setGreeting(getTimeBasedGreeting());
-    }, 60000);
-
     // Check onboarding status
     const hasOnboarded = localStorage.getItem("bonder_has_onboarded");
     if (!hasOnboarded) {
       setTimeout(() => setShowOnboarding(true), 0);
     }
-
-    return () => clearInterval(greetingInterval);
   }, [calculateHealth, checkStreak, applyDriftPhysics, initializeProfile]);
 
   const handleOnboardingComplete = () => {

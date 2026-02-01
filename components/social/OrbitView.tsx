@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
+import Image from 'next/image';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useStore, OrbitLayer, Contact } from '@/lib/store';
 import { OrbitNode } from './OrbitNode';
@@ -83,18 +84,15 @@ export function OrbitView() {
         setOrbit(contactId, newOrbit);
     };
 
-    const [stars, setStars] = useState<{ id: number; top: string; left: string; size: number; delay: number }[]>([]);
-
-    useEffect(() => {
-        const generatedStars = Array.from({ length: 50 }).map((_, i) => ({
+    const [stars, setStars] = useState<{ id: number; top: string; left: string; size: number; delay: number }[]>(() =>
+        Array.from({ length: 50 }).map((_, i) => ({
             id: i,
             top: `${Math.random() * 100}%`,
             left: `${Math.random() * 100}%`,
             size: Math.random() * 2 + 1,
             delay: Math.random() * 5
-        }));
-        setStars(generatedStars);
-    }, []);
+        }))
+    );
 
     const getHealthColor = (score: number) => {
         if (score > 70) return 'text-emerald-400';
@@ -165,7 +163,7 @@ export function OrbitView() {
                     >
                         <div className="flex items-center gap-4 mb-4">
                             {selectedContact.avatar ? (
-                                <img src={selectedContact.avatar} className="w-14 h-14 rounded-2xl object-cover border-2 border-white/10" alt="" />
+                                <Image src={selectedContact.avatar} width={56} height={56} className="w-14 h-14 rounded-2xl object-cover border-2 border-white/10" alt="" />
                             ) : (
                                 <div
                                     className="w-14 h-14 rounded-2xl flex items-center justify-center font-black text-white border-2 border-white/10 text-xl"

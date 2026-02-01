@@ -5,11 +5,16 @@ import { Share, PlusSquare, Download, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Logo } from "@/components/ui/Logo";
 
+interface BeforeInstallPromptEvent extends Event {
+    prompt: () => Promise<void>;
+    userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
 export function InstallPrompt() {
     const [isIOS, setIsIOS] = useState(false);
     const [isAndroid, setIsAndroid] = useState(false);
     const [isStandalone, setIsStandalone] = useState(true);
-    const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+    const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
     const [installStatus, setInstallStatus] = useState<'idle' | 'installing' | 'installed'>('idle');
     const [showIOSInstructions, setShowIOSInstructions] = useState(false);
     const [progress, setProgress] = useState(0);
@@ -17,7 +22,7 @@ export function InstallPrompt() {
 
     useEffect(() => {
         const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches ||
-            (window.navigator as any).standalone === true;
+            (window.navigator as unknown as { standalone?: boolean }).standalone === true;
 
         const userAgent = window.navigator.userAgent.toLowerCase();
         const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
@@ -36,9 +41,9 @@ export function InstallPrompt() {
 
         setIsStandalone(shouldHidePrompt);
 
-        const handleBeforeInstallPrompt = (e: any) => {
+        const handleBeforeInstallPrompt = (e: Event) => {
             e.preventDefault();
-            setDeferredPrompt(e);
+            setDeferredPrompt(e as BeforeInstallPromptEvent);
         };
 
         const handleAppInstalled = () => {

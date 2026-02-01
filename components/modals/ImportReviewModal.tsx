@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Check, Search, Upload } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 
 export interface ParsedContact {
     name: string;
@@ -23,7 +23,7 @@ export function ImportReviewModal({ isOpen, onClose, contacts, onConfirm }: Impo
     const [searchTerm, setSearchTerm] = useState("");
 
     // Update local state when props change
-    useMemo(() => {
+    useEffect(() => {
         setLocalContacts(contacts);
     }, [contacts]);
 

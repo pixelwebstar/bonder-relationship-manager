@@ -6,8 +6,9 @@ import { MobileFrame } from "@/components/layout/MobileFrame";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { motion, AnimatePresence } from "framer-motion";
 import { Phone, Calendar, MessageSquare, Send, Edit2, Trash2, BellOff, X, Clock, TrendingUp, ChevronLeft, MoreVertical, Pin, Sparkles, BookOpen, Activity } from "lucide-react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState, use, useRef } from "react";
+import { useState, use, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { formatDistanceToNow, format, differenceInDays } from "date-fns";
 import { InteractionModal } from "@/components/InteractionModal";
@@ -39,6 +40,11 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
     const [isGenerating, setIsGenerating] = useState(false);
     const [aiSummary, setAiSummary] = useState<string | null>(null);
     const [modalTab, setModalTab] = useState<'health' | 'timeline'>('health');
+    const [now, setNow] = useState<number | null>(null);
+
+    useEffect(() => {
+        setNow(Date.now());
+    }, []);
 
     if (!contact) {
         return (
@@ -168,7 +174,12 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
                         <div className="absolute -bottom-16 left-1/2 transform -translate-x-1/2">
                             <div className="w-32 h-32 rounded-full border-4 border-white dark:border-slate-900 shadow-xl overflow-hidden bg-white dark:bg-slate-800 flex items-center justify-center">
                                 {contact.avatar ? (
-                                    <img src={contact.avatar} alt={contact.name} className="w-full h-full object-cover" />
+                                    <Image
+                                        src={contact.avatar}
+                                        alt={contact.name}
+                                        fill
+                                        className="w-full h-full object-cover"
+                                    />
                                 ) : (
                                     <span className="text-4xl font-bold bg-gradient-to-r from-violet-500 to-fuchsia-500 bg-clip-text text-transparent">
                                         {contact.name.charAt(0)}
@@ -220,7 +231,7 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
                                     <span className="text-[10px] font-semibold text-violet-400 uppercase tracking-wider">Last Seen</span>
                                 </div>
                                 <div className="w-full h-2 bg-white/60 dark:bg-slate-900 rounded-full overflow-hidden mb-1">
-                                    <div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full transition-all" style={{ width: `${Math.max(0, 100 - Math.floor((Date.now() - new Date(contact.lastContacted).getTime()) / (1000 * 60 * 60 * 24) / contact.targetFrequencyDays * 100))}%` }} />
+                                    <div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full transition-all" style={{ width: `${now ? Math.max(0, 100 - Math.floor((now - new Date(contact.lastContacted).getTime()) / (1000 * 60 * 60 * 24) / contact.targetFrequencyDays * 100)) : 100}%` }} />
                                 </div>
                                 <div className="text-right text-[11px] text-violet-400">
                                     {formatDistanceToNow(new Date(contact.lastContacted), { addSuffix: true })}
@@ -287,7 +298,7 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
                                                             <X className="w-4 h-4" />
                                                         </button>
                                                     </div>
-                                                    <p className="text-sm text-foreground leading-relaxed italic">"{aiSummary}"</p>
+                                                    <p className="text-sm text-foreground leading-relaxed italic">&quot;{aiSummary}&quot;</p>
                                                 </div>
                                             )}
                                         </div>

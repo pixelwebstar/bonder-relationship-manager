@@ -129,7 +129,7 @@ export default function StreaksPage() {
                     <div className="glass-card p-6 rounded-3xl mb-8 border-emerald-500/20 bg-emerald-50/10 text-center">
                         <Trophy className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
                         <h3 className="font-bold text-emerald-600 dark:text-emerald-400">Daily Leveling Cap Reached!</h3>
-                        <p className="text-xs text-muted-foreground mt-1">You've reached your 100 XP counted limit for today. You can still earn more "Feel Good" XP, but your level will increase again tomorrow!</p>
+                        <p className="text-xs text-muted-foreground mt-1">You&apos;ve reached your 100 XP counted limit for today. You can still earn more "Feel Good" XP, but your level will increase again tomorrow!</p>
                     </div>
                 )}
 

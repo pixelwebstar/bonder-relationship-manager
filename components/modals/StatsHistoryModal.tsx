@@ -82,7 +82,7 @@ export function StatsHistoryModal({ isOpen, onClose, contact, initialTab = 'heal
                                         <div>
                                             <h3 className="font-bold text-foreground mb-1">How Scores Work</h3>
                                             <p className="text-xs text-muted-foreground leading-relaxed">
-                                                Your Relationship Health Score starts at 100%. It drops automatically over time if you don't interact within your target timeframe ({contact.targetFrequencyDays} days).
+                                                Your Relationship Health Score starts at 100%. It drops automatically over time if you don&apos;t interact within your target timeframe ({contact.targetFrequencyDays} days).
                                             </p>
                                         </div>
                                     </div>
@@ -156,7 +156,7 @@ export function StatsHistoryModal({ isOpen, onClose, contact, initialTab = 'heal
                                         <div>
                                             <h3 className="font-bold text-foreground mb-1">Consistency Matters</h3>
                                             <p className="text-xs text-muted-foreground leading-relaxed">
-                                                Regular check-ins keep the relationship "High Mass". The Timeline tracks your actual consistency versus your target of every {contact.targetFrequencyDays} days.
+                                                Regular check-ins keep the relationship &quot;High Mass&quot;. The Timeline tracks your actual consistency versus your target of every {contact.targetFrequencyDays} days.
                                             </p>
                                         </div>
                                     </div>

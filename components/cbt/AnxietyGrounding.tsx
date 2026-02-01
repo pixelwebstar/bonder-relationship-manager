@@ -34,13 +34,15 @@ export function AnxietyGrounding({ isOpen, onClose, onReady }: AnxietyGroundingP
     // Reset state when modal opens
     useEffect(() => {
         if (isOpen) {
-            setStep('intro');
-            setStartCountdown(3);
-            setBreathPhase('inhale');
-            setCountdown(INHALE_DURATION);
-            setCurrentCycle(1);
-            setIsBreathingComplete(false);
-            setReasons(['', '', '']);
+            setTimeout(() => {
+                setStep('intro');
+                setStartCountdown(3);
+                setBreathPhase('inhale');
+                setCountdown(INHALE_DURATION);
+                setCurrentCycle(1);
+                setIsBreathingComplete(false);
+                setReasons(['', '', '']);
+            }, 0);
         }
     }, [isOpen]);
 

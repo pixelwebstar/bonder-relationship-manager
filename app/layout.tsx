@@ -39,6 +39,8 @@ export const metadata: Metadata = {
   },
 };
 
+import { SyncProvider } from "@/components/providers/SyncProvider";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -75,6 +77,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <SyncProvider />
           <InstallPrompt />
           {children}
           <Analytics />
@@ -84,3 +87,4 @@ export default function RootLayout({
     </html>
   );
 }
+

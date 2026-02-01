@@ -11,9 +11,10 @@ interface CloudSyncModalProps {
     onOverwrite: () => void;
     cloudDate: string | null;
     localDate: string | null;
+    accountNumber?: number;
 }
 
-export function CloudSyncModal({ isOpen, onClose, onRestore, onOverwrite, cloudDate, localDate }: CloudSyncModalProps) {
+export function CloudSyncModal({ isOpen, onClose, onRestore, onOverwrite, cloudDate, localDate, accountNumber }: CloudSyncModalProps) {
     if (!isOpen) return null;
 
     const formatDate = (dateString: string | null) => {
@@ -69,6 +70,7 @@ export function CloudSyncModal({ isOpen, onClose, onRestore, onOverwrite, cloudD
                                         </div>
                                         <div className="text-[10px] uppercase font-bold text-blue-500/60 mt-1">
                                             Last Save: {formatDate(cloudDate)}
+                                            {accountNumber ? ` • Account #${accountNumber}` : ''}
                                         </div>
                                     </div>
                                     <div className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">

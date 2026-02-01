@@ -17,7 +17,7 @@ import { parseVCF } from "@/lib/vcf-parser";
 import { useRef } from "react";
 import { auth, db, googleProvider } from "@/lib/firebase";
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, runTransaction, increment } from "firebase/firestore";
 import { CloudSyncModal } from "@/components/modals/CloudSyncModal";
 
 export default function SettingsPage() {
@@ -193,6 +193,11 @@ export default function SettingsPage() {
                                             <span className={`text-[9px] uppercase font-black px-1.5 py-0.5 rounded-md border ${userProfile?.isPro ? 'bg-violet-500 text-white border-transparent' : 'bg-secondary/50 border-border text-muted-foreground'}`}>
                                                 {userProfile?.isPro ? "Pro" : "Free"}
                                             </span>
+                                            {userProfile?.accountNumber && userProfile.accountNumber > 0 && (
+                                                <span className="text-[9px] uppercase font-black px-1.5 py-0.5 rounded-md bg-primary/10 border border-primary/20 text-primary">
+                                                    Account #{userProfile.accountNumber}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -234,40 +239,84 @@ export default function SettingsPage() {
                                             const result = await signInWithPopup(auth, googleProvider);
                                             const user = result.user;
                                             console.log("Login Successful:", user.uid);
-                                            setPendingUser(user);
-
                                             const docRef = doc(db, "users", user.uid);
-                                            const docSnap = await getDoc(docRef);
 
-                                            if (docSnap.exists()) {
-                                                console.log("Found existing cloud data");
-                                                setPendingCloudData(docSnap.data());
-                                                setShowCloudSyncModal(true);
-                                            } else {
-                                                console.log("No cloud data found, creating backup...");
-                                                const state = useStore.getState();
-                                                const dataToSave = {
-                                                    contacts: state.contacts,
-                                                    stats: state.stats,
-                                                    userProfile: {
-                                                        ...state.userProfile,
+                                            // Use Transaction to assign sequential account number
+                                            try {
+                                                await runTransaction(db, async (transaction) => {
+                                                    const userDoc = await transaction.get(docRef);
+                                                    const counterRef = doc(db, "metadata", "global_stats");
+                                                    const counterDoc = await transaction.get(counterRef);
+
+                                                    let cloudAccountNumber = 0;
+                                                    const localAccountNumber = useStore.getState().userProfile?.accountNumber || 0;
+
+                                                    if (userDoc.exists() && userDoc.data().accountNumber > 0) {
+                                                        cloudAccountNumber = userDoc.data().accountNumber;
+                                                        console.log("Found existing account number in cloud:", cloudAccountNumber);
+                                                    }
+
+                                                    // Account Mismatch Check
+                                                    if (localAccountNumber > 0 && cloudAccountNumber > 0 && localAccountNumber !== cloudAccountNumber) {
+                                                        throw new Error("ACCOUNT_MISMATCH");
+                                                    }
+
+                                                    let finalAccountNumber = cloudAccountNumber || localAccountNumber;
+
+                                                    if (finalAccountNumber === 0) {
+                                                        console.log("Assigning new sequential account number...");
+                                                        const currentCount = counterDoc.exists() ? (counterDoc.data().totalAccounts || 0) : 0;
+                                                        finalAccountNumber = currentCount + 1;
+
+                                                        // Update Counter
+                                                        transaction.set(counterRef, { totalAccounts: increment(1) }, { merge: true });
+                                                    }
+
+                                                    const state = useStore.getState();
+
+                                                    // Handle Conflict Resolution Modal if data exists but it's a new connection
+                                                    if (userDoc.exists() && !state.userProfile?.isConnected) {
+                                                        console.log("Data exists in cloud, showing conflict modal...");
+                                                        setPendingCloudData(userDoc.data());
+                                                        setShowCloudSyncModal(true);
+                                                        // We don't finish the connection here, the modal will handle it
+                                                        return;
+                                                    }
+
+                                                    const dataToSave = {
+                                                        contacts: state.contacts,
+                                                        stats: state.stats,
+                                                        userProfile: {
+                                                            ...state.userProfile,
+                                                            userId: user.uid,
+                                                            isConnected: true,
+                                                            displayName: user.displayName || state.userProfile?.displayName,
+                                                            avatar: user.photoURL || state.userProfile?.avatar,
+                                                            accountNumber: finalAccountNumber
+                                                        },
+                                                        availableTags: state.availableTags,
+                                                        accountNumber: finalAccountNumber,
+                                                        lastUpdated: new Date().toISOString()
+                                                    };
+
+                                                    transaction.set(docRef, dataToSave, { merge: true });
+
+                                                    updateProfile({
                                                         userId: user.uid,
                                                         isConnected: true,
                                                         displayName: user.displayName || state.userProfile?.displayName,
-                                                        avatar: user.photoURL || state.userProfile?.avatar
-                                                    },
-                                                    availableTags: state.availableTags,
-                                                    lastUpdated: new Date().toISOString()
-                                                };
+                                                        avatar: user.photoURL || state.userProfile?.avatar,
+                                                        accountNumber: finalAccountNumber
+                                                    });
 
-                                                await setDoc(docRef, dataToSave);
-                                                updateProfile({
-                                                    userId: user.uid,
-                                                    isConnected: true,
-                                                    displayName: user.displayName || state.userProfile?.displayName,
-                                                    avatar: user.photoURL || state.userProfile?.avatar
+                                                    toast.success("Connected & Synchronized!");
                                                 });
-                                                toast.success("Connected & Backed up!");
+                                            } catch (err: any) {
+                                                if (err.message === "ACCOUNT_MISMATCH") {
+                                                    toast.error("Account number mismatch. Please use the original Google account or clear your local data.");
+                                                } else {
+                                                    throw err;
+                                                }
                                             }
                                         } catch (error: any) {
                                             if (error?.code === 'auth/popup-closed-by-user') {
@@ -299,7 +348,12 @@ export default function SettingsPage() {
                                         </div>
                                         <div>
                                             <span className="font-medium text-foreground">{isConnecting ? "Authenticating..." : isConnected ? "Sync Database" : "Connect Google"}</span>
-                                            <p className="text-xs text-muted-foreground">{isConnected ? "Cloud storage active" : "Sync across all your devices"}</p>
+                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                <p className="text-xs text-muted-foreground">{isConnected ? "Cloud storage active" : "Sync across all your devices"}</p>
+                                                {isConnected && userProfile?.accountNumber && (
+                                                    <span className="text-[10px] font-bold text-primary bg-primary/10 px-1 rounded-sm">#{userProfile.accountNumber}</span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                     {isConnected ? (
@@ -319,6 +373,7 @@ export default function SettingsPage() {
                         onClose={() => setShowCloudSyncModal(false)}
                         cloudDate={pendingCloudData?.lastUpdated}
                         localDate={useStore.getState().stats.lastActiveDate}
+                        accountNumber={pendingCloudData?.accountNumber}
                         onRestore={() => {
                             if (pendingCloudData) {
                                 // Restore data from cloud

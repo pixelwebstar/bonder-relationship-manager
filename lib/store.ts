@@ -54,6 +54,7 @@ export interface UserProfile {
     avatar: string | null;
     isPro: boolean;
     isConnected: boolean;
+    accountNumber: number; // 0 if disconnected, sequential integer if connected
 }
 
 export interface Contact {
@@ -660,7 +661,8 @@ export const useStore = create<AppState>()(
                         createdAt: new Date().toISOString(),
                         avatar: null,
                         isPro: false,
-                        isConnected: false // Default to not connected
+                        isConnected: false,
+                        accountNumber: 0
                     }
                 };
             }),

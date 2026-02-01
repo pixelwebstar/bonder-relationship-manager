@@ -40,6 +40,7 @@ export function SyncProvider() {
                             stats: state.stats,
                             userProfile: state.userProfile,
                             availableTags: state.availableTags,
+                            accountNumber: state.userProfile?.accountNumber || 0,
                             lastUpdated: new Date().toISOString()
                         };
 
